@@ -1,0 +1,27 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0300",
+    "type": "reservation.confirmee",
+    "date": "2026-10-05T14:02:00Z",
+    "emetteur": "reservations",
+    "recepteurs": ["social"],
+    "type_objet": "Reservation",
+    "id_objet": "res_981",
+    "donnees": {
+      "acheteur_id": "client_12",
+      "seance_id": "seance_42",
+      "montant": 20.50,
+      "billets": [
+        { "billet_id": "bil_981_1", "place": "F7", "tarif": "plein", "prix": 11.50, "titulaire_id": "client_12", "statut": "payee" },
+        { "billet_id": "bil_981_2", "place": "F8", "tarif": "reduit", "prix": 9.00, "titulaire_id": "client_12", "statut": "payee" }
+      ]
+    },
+    "contexte": {
+      "film_id": "film_dune2",
+      "debut_seance": "2026-10-07T20:00:00Z"
+    }
+  },
+  "reactions": [
+    { "service": "social", "effet": "crée la relation VA_VOIR entre l'acheteur et le film ; elle n'apparaît dans « tes amis vont voir » que si l'acheteur a activé le partage" }
+  ]
+}

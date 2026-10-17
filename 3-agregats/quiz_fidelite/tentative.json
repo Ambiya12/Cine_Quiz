@@ -1,0 +1,36 @@
+{
+  "agregat": "Tentative",
+  "service": "quiz_fidelite",
+  "stockage": "un hash Redis tentative:{billet_id}, qui expire automatiquement après la fermeture",
+  "regles": [
+    "une seule tentative par billet validé",
+    "elle ne s'ouvre qu'avec un scan du QR code pendant le générique",
+    "elle doit être démarrée dans les 2 heures suivant son ouverture",
+    "10 questions tirées au hasard parmi celles du film",
+    "une question à la fois, 15 secondes chacune, chronomètre côté serveur",
+    "une réponse hors délai ou absente est comptée fausse",
+    "la bonne réponse n'est jamais envoyée au téléphone"
+  ],
+  "references": ["billet_id", "client_id", "film_id", "seance_id"],
+  "exemple": {
+    "billet_id": "bil_981_2",
+    "client_id": "client_12",
+    "film_id": "film_dune2",
+    "seance_id": "seance_42",
+    "statut": "terminee",
+    "debut_generique": "2026-10-07T22:38:00Z",
+    "fin_seance": "2026-10-07T22:46:00Z",
+    "ouverte_le": "2026-10-07T22:41:00Z",
+    "ferme_le": "2026-10-08T00:41:00Z",
+    "demarree_le": "2026-10-07T23:05:00Z",
+    "questions": ["q1", "q7", "q12", "q15", "q18", "q21", "q26", "q30", "q34", "q38"],
+    "question_courante": null,
+    "question_envoyee_le": null,
+    "reponses": {
+      "q1": { "reponse": 1, "correcte": true },
+      "q7": { "reponse": 2, "correcte": true },
+      "q12": { "reponse": null, "correcte": false }
+    },
+    "score": 9
+  }
+}

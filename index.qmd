@@ -1,0 +1,28 @@
+---
+title: "CinéQuiz"
+subtitle: "Projet NoSQL : services, agrégats, événements et projections"
+author: "Nirzara , Amery , Galystan, Stéphanie , Amena"
+date: today
+---
+
+
+
+## L'agrégat Film
+
+Les questions du quiz sont dans le film, parce qu'elles n'existent que pour lui
+et s'éditent avec lui.
+
+```{.json include="3-agregats/catalogue/film.json"}
+```
+
+
+
+## Présentation du projet
+## Les acteurs
+## Les règles métier
+## Les services
+## Les commandes
+## Les agrégats
+## Les événements et les réplicas
+## Les projections
+## Le parcours complet

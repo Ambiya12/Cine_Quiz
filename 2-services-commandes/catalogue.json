@@ -1,0 +1,100 @@
+{
+  "service": "catalogue",
+  "base": "mongodb",
+  "commandes": [
+    {
+      "nom": "CreerFilm",
+      "acteur": "gerant",
+      "donnees": {
+        "titre": "Dune : Deuxième partie",
+        "synopsis": "...",
+        "genres": ["science-fiction", "aventure"],
+        "duree_min": 166,
+        "debut_generique_min": 158,
+        "casting": [{ "acteur": "Timothée Chalamet", "role": "Paul Atreides" }]
+      },
+      "verifications": ["le début du générique est inférieur à la durée du film"],
+      "effet": "crée le film, à l'affiche, sans questions",
+      "evenement": "film.cree"
+    },
+    {
+      "nom": "ModifierFilm",
+      "acteur": "gerant",
+      "donnees": { "film_id": "film_dune2", "synopsis": "..." },
+      "verifications": ["le film existe"],
+      "effet": "met à jour les informations du film",
+      "evenement": "film.modifie"
+    },
+    {
+      "nom": "AjouterQuestion",
+      "acteur": "gerant",
+      "donnees": {
+        "film_id": "film_dune2",
+        "texte": "Quelle est la couleur des yeux des Fremen ?",
+        "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
+        "reponse": 1
+      },
+      "verifications": [
+        "le film existe",
+        "la question a exactement 4 choix",
+        "l'indice de la bonne réponse est compris entre 0 et 3"
+      ],
+      "effet": "ajoute la question à la banque de questions du film",
+      "evenement": "film.modifie"
+    },
+    {
+      "nom": "RetirerFilmDeLAffiche",
+      "acteur": "gerant",
+      "donnees": { "film_id": "film_dune2" },
+      "verifications": ["aucune séance future n'est programmée pour ce film"],
+      "effet": "le film n'est plus à l'affiche, mais reste conservé avec son historique",
+      "evenement": "film.modifie"
+    },
+    {
+      "nom": "CreerSalle",
+      "acteur": "gerant",
+      "donnees": {
+        "nom": "Salle 3",
+        "capacite": 300,
+        "plan": { "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"], "places_par_rangee": 20, "places_pmr": ["A1", "A2"] }
+      },
+      "verifications": ["la capacité correspond au nombre de places du plan"],
+      "effet": "crée la salle",
+      "evenement": null
+    },
+    {
+      "nom": "CreerSeance",
+      "acteur": "gerant",
+      "donnees": {
+        "film_id": "film_dune2",
+        "salle_id": "salle_3",
+        "debut": "2026-10-07T20:00:00Z",
+        "version": "VF",
+        "tarifs": { "plein": 11.50, "reduit": 9.00, "enfant": 7.00 }
+      },
+      "verifications": [
+        "le film est à l'affiche et possède au moins 10 questions",
+        "la salle est libre sur ce créneau",
+        "tous les tarifs sont positifs"
+      ],
+      "effet": "crée la séance ; l'heure du générique et l'heure de fin sont calculées à partir du film",
+      "evenement": "seance.creee"
+    },
+    {
+      "nom": "ModifierSeance",
+      "acteur": "gerant",
+      "donnees": { "seance_id": "seance_42", "tarifs": { "reduit": 8.50 } },
+      "verifications": ["la séance n'a pas encore commencé"],
+      "effet": "met à jour la séance ; les billets déjà vendus gardent leur prix",
+      "evenement": "seance.modifiee"
+    },
+    {
+      "nom": "AnnulerSeance",
+      "acteur": "gerant",
+      "donnees": { "seance_id": "seance_42", "motif": "panne du projecteur" },
+      "verifications": ["la séance n'est pas terminée"],
+      "effet": "la séance passe au statut annulée",
+      "evenement": "seance.annulee"
+    }
+  ]
+}

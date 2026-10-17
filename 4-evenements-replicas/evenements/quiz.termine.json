@@ -1,0 +1,26 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0700",
+    "type": "quiz.termine",
+    "date": "2026-10-07T23:08:00Z",
+    "emetteur": "quiz_fidelite",
+    "recepteurs": ["quiz_fidelite", "social"],
+    "type_objet": "Tentative",
+    "id_objet": "bil_981_2",
+    "modifications": [
+      { "donnee": "statut", "nouvelle_valeur": "terminee" },
+      { "donnee": "score", "nouvelle_valeur": 9 }
+    ],
+    "contexte": {
+      "client_id": "client_12",
+      "film_id": "film_dune2",
+      "seance_id": "seance_42",
+      "sans_faute": false
+    }
+  },
+  "reactions": [
+    { "service": "quiz_fidelite", "agregat": "CompteFidelite", "effet": "ajoute 90 points (9 × 10), met à jour les compteurs, débloque le badge premier_quiz (+50 points)" },
+    { "service": "quiz_fidelite", "agregat": "Coupon", "effet": "tire au sort (50 % de chances pour 8 ou 9/10) ; si gagné, crée un coupon popcorn_moyen et publie coupon.emis" },
+    { "service": "social", "agregat": "Client", "effet": "ajoute le score 9 sur la relation A_VU entre le client et le film" }
+  ]
+}

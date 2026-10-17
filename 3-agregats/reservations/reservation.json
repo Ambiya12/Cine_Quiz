@@ -1,0 +1,51 @@
+{
+  "agregat": "Reservation",
+  "service": "reservations",
+  "stockage": "trois tables Cassandra : reservations (par reservation_id), billets_par_seance (par seance_id et place) et billets_par_client (par titulaire_id)",
+  "regles": [
+    "un billet par place, chacun avec son propre QR code",
+    "le montant est égal à la somme des prix des billets",
+    "la somme des paiements et remboursements est égale au montant",
+    "le prix d'un billet est celui de la séance au moment de l'achat et ne change plus",
+    "une place ne peut être vendue qu'une seule fois",
+    "un billet à tarif réduit ou enfant n'est validé que si le justificatif a été vérifié",
+    "seul l'acheteur peut annuler, jusqu'à 30 minutes avant la séance, si aucun billet n'est validé",
+    "une réservation ne peut pas être modifiée"
+  ],
+  "references": ["acheteur_id", "seance_id", "titulaire_id"],
+  "exemple": {
+    "reservation_id": "res_981",
+    "acheteur_id": "client_12",
+    "seance_id": "seance_42",
+    "statut": "confirmee",
+    "montant": 20.50,
+    "billets": [
+      {
+        "billet_id": "bil_981_1",
+        "place": "F7",
+        "tarif": "plein",
+        "prix": 11.50,
+        "titulaire_id": "client_40",
+        "jeton_qr": "a8f3...",
+        "statut": "validee",
+        "justificatif_verifie": false,
+        "valide_le": "2026-10-07T19:52:00Z"
+      },
+      {
+        "billet_id": "bil_981_2",
+        "place": "F8",
+        "tarif": "reduit",
+        "prix": 9.00,
+        "titulaire_id": "client_12",
+        "jeton_qr": "c71b...",
+        "statut": "validee",
+        "justificatif_verifie": true,
+        "valide_le": "2026-10-07T19:53:00Z"
+      }
+    ],
+    "paiements": [
+      { "type": "paiement", "montant": 20.50, "reference": "pay_330", "date": "2026-10-05T14:02:00Z" }
+    ],
+    "cree_le": "2026-10-05T14:02:00Z"
+  }
+}

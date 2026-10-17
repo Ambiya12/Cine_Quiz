@@ -1,0 +1,21 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0800",
+    "type": "points.echanges",
+    "date": "2026-10-08T10:15:00Z",
+    "emetteur": "quiz_fidelite",
+    "recepteurs": ["quiz_fidelite"],
+    "type_objet": "CompteFidelite",
+    "id_objet": "client_12",
+    "modifications": [
+      { "donnee": "solde_points", "nouvelle_valeur": 0 }
+    ],
+    "contexte": {
+      "recompense": "boisson",
+      "points_debites": 150
+    }
+  },
+  "reactions": [
+    { "service": "quiz_fidelite", "agregat": "Coupon", "effet": "crée un coupon boisson, d'origine echange_points, valable 30 jours, et publie coupon.emis" }
+  ]
+}

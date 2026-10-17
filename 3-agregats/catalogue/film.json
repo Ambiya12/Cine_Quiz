@@ -1,0 +1,30 @@
+{
+  "agregat": "Film",
+  "service": "catalogue",
+  "stockage": "un document dans la collection films de MongoDB",
+  "regles": [
+    "les questions n'existent que pour ce film et s'éditent avec lui",
+    "le début du générique est inférieur à la durée du film",
+    "chaque question a exactement 4 choix et une seule bonne réponse",
+    "un film retiré de l'affiche est conservé, jamais supprimé"
+  ],
+  "references": [],
+  "exemple": {
+    "film_id": "film_dune2",
+    "titre": "Dune : Deuxième partie",
+    "synopsis": "...",
+    "genres": ["science-fiction", "aventure"],
+    "duree_min": 166,
+    "debut_generique_min": 158,
+    "a_l_affiche": true,
+    "casting": [{ "acteur": "Timothée Chalamet", "role": "Paul Atreides" }],
+    "questions": [
+      {
+        "question_id": "q1",
+        "texte": "Quelle est la couleur des yeux des Fremen ?",
+        "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
+        "reponse": 1
+      }
+    ]
+  }
+}

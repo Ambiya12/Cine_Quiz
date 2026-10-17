@@ -1,0 +1,31 @@
+{
+  "replica": "SeanceReplica",
+  "dans_le_service": "reservations",
+  "source": "catalogue : agrégats Seance, Film (titre) et Salle (plan)",
+  "cree_par": "seance.creee",
+  "mis_a_jour_par": ["seance.modifiee", "seance.annulee"],
+  "usage": [
+    "vérifier qu'une place existe dans le plan de la salle",
+    "calculer le prix des billets à partir des tarifs",
+    "refuser une réservation pour une séance commencée ou annulée",
+    "transmettre les horaires dans l'événement billet.valide"
+  ],
+  "stockage": "une table Cassandra seances_replica, par seance_id",
+  "exemple": {
+    "seance_id": "seance_42",
+    "film_id": "film_dune2",
+    "titre_film": "Dune : Deuxième partie",
+    "salle_id": "salle_3",
+    "debut": "2026-10-07T20:00:00Z",
+    "debut_generique": "2026-10-07T22:38:00Z",
+    "fin": "2026-10-07T22:46:00Z",
+    "version": "VF",
+    "tarifs": { "plein": 11.50, "reduit": 8.50, "enfant": 7.00 },
+    "plan": {
+      "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"],
+      "places_par_rangee": 20,
+      "places_pmr": ["A1", "A2"]
+    },
+    "statut": "programmee"
+  }
+}

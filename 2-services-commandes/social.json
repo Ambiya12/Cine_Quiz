@@ -1,0 +1,34 @@
+{
+  "service": "social",
+  "base": "neo4j",
+  "commandes": [
+    {
+      "nom": "CreerClient",
+      "acteur": "spectateur",
+      "donnees": { "pseudo": "lea_cine", "genres_preferes": ["science-fiction"] },
+      "verifications": ["le pseudo n'est pas déjà utilisé"],
+      "effet": "crée le nœud Client, avec le partage désactivé par défaut",
+      "evenement": null
+    },
+    {
+      "nom": "AjouterAmi",
+      "acteur": "spectateur",
+      "donnees": { "client_id": "client_12", "ami_id": "client_40" },
+      "verifications": [
+        "les deux clients existent",
+        "ils ne sont pas déjà amis",
+        "un client ne peut pas s'ajouter lui-même"
+      ],
+      "effet": "crée la relation AMI_DE entre les deux clients",
+      "evenement": null
+    },
+    {
+      "nom": "ModifierConfidentialite",
+      "acteur": "spectateur",
+      "donnees": { "client_id": "client_12", "partager_activite": true },
+      "verifications": ["le demandeur est le client concerné"],
+      "effet": "active ou désactive le partage de ses films avec ses amis ; le changement s'applique immédiatement à l'affichage",
+      "evenement": null
+    }
+  ]
+}

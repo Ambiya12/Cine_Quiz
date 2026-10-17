@@ -1,0 +1,23 @@
+{
+  "agregat": "Seance",
+  "service": "catalogue",
+  "stockage": "un document dans la collection seances de MongoDB",
+  "regles": [
+    "l'heure du générique et l'heure de fin sont calculées à partir du film, jamais saisies",
+    "deux séances ne peuvent pas occuper la même salle en même temps",
+    "tous les tarifs sont positifs",
+    "une séance annulée ne peut plus être modifiée"
+  ],
+  "references": ["film_id", "salle_id"],
+  "exemple": {
+    "seance_id": "seance_42",
+    "film_id": "film_dune2",
+    "salle_id": "salle_3",
+    "debut": "2026-10-07T20:00:00Z",
+    "debut_generique": "2026-10-07T22:38:00Z",
+    "fin": "2026-10-07T22:46:00Z",
+    "version": "VF",
+    "tarifs": { "plein": 11.50, "reduit": 9.00, "enfant": 7.00 },
+    "statut": "programmee"
+  }
+}

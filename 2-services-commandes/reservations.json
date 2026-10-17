@@ -1,0 +1,74 @@
+{
+  "service": "reservations",
+  "base": "cassandra (+ redis pour le verrou des places)",
+  "commandes": [
+    {
+      "nom": "BloquerPlace",
+      "acteur": "spectateur",
+      "donnees": { "seance_id": "seance_42", "place": "F7", "client_id": "client_12" },
+      "verifications": [
+        "la séance n'a pas commencé",
+        "la place existe dans le plan de la salle (réplica de la séance)",
+        "la place n'est ni vendue ni déjà bloquée"
+      ],
+      "effet": "verrou Redis de 5 minutes sur la place, qui disparaît seul si le paiement n'aboutit pas",
+      "evenement": null
+    },
+    {
+      "nom": "ConfirmerReservation",
+      "acteur": "spectateur",
+      "donnees": {
+        "seance_id": "seance_42",
+        "client_id": "client_12",
+        "billets": [
+          { "place": "F7", "tarif": "plein" },
+          { "place": "F8", "tarif": "reduit" }
+        ],
+        "paiement_id": "pay_330"
+      },
+      "verifications": [
+        "chaque place est bloquée par ce client",
+        "chaque tarif existe dans la grille de la séance",
+        "le paiement couvre le montant total"
+      ],
+      "effet": "crée la réservation et un billet par place, chacun avec son QR code, au statut payee ; l'acheteur est le titulaire de tous les billets",
+      "evenement": "reservation.confirmee"
+    },
+    {
+      "nom": "AnnulerReservation",
+      "acteur": "spectateur",
+      "donnees": { "reservation_id": "res_981" },
+      "verifications": [
+        "le demandeur est l'acheteur de la réservation",
+        "la séance commence dans plus de 30 minutes",
+        "aucun billet de la réservation n'a été validé"
+      ],
+      "effet": "tous les billets passent au statut annulee, les places redeviennent libres, et un remboursement du montant total est ajouté aux paiements",
+      "evenement": "reservation.annulee"
+    },
+    {
+      "nom": "TransfererBillet",
+      "acteur": "spectateur",
+      "donnees": { "billet_id": "bil_981_1", "nouveau_titulaire_id": "client_40" },
+      "verifications": [
+        "le demandeur est le titulaire actuel du billet",
+        "le billet n'est pas encore validé"
+      ],
+      "effet": "le billet change de titulaire et apparaît dans l'application du nouveau titulaire",
+      "evenement": null
+    },
+    {
+      "nom": "ValiderBillet",
+      "acteur": "agent",
+      "donnees": { "billet_id": "bil_981_2", "jeton_qr": "c71b...", "justificatif_verifie": true },
+      "verifications": [
+        "le jeton correspond au billet",
+        "le billet est au statut payee (il n'a pas déjà été validé)",
+        "la séance a lieu aujourd'hui, dans cette salle",
+        "si le tarif est réduit ou enfant, le justificatif a été vérifié"
+      ],
+      "effet": "le billet passe au statut validee ; le spectateur peut entrer",
+      "evenement": "billet.valide"
+    }
+  ]
+}

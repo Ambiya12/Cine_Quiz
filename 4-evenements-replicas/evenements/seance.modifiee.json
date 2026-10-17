@@ -1,0 +1,18 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0041",
+    "type": "seance.modifiee",
+    "date": "2026-10-06T10:30:00Z",
+    "emetteur": "catalogue",
+    "recepteurs": ["reservations", "recherche"],
+    "type_objet": "Seance",
+    "id_objet": "seance_42",
+    "modifications": [
+      { "donnee": "tarifs.reduit", "nouvelle_valeur": 8.50 }
+    ]
+  },
+  "reactions": [
+    { "service": "reservations", "effet": "met à jour le tarif dans son réplica ; les billets déjà vendus gardent leur prix" },
+    { "service": "recherche", "effet": "met à jour le tarif le plus bas affiché dans les résultats" }
+  ]
+}

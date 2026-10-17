@@ -1,0 +1,20 @@
+{
+  "agregat": "Salle",
+  "service": "catalogue",
+  "stockage": "un document dans la collection salles de MongoDB",
+  "regles": [
+    "la capacité correspond au nombre de places du plan",
+    "les places PMR font partie du plan"
+  ],
+  "references": [],
+  "exemple": {
+    "salle_id": "salle_3",
+    "nom": "Salle 3",
+    "capacite": 300,
+    "plan": {
+      "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"],
+      "places_par_rangee": 20,
+      "places_pmr": ["A1", "A2"]
+    }
+  }
+}

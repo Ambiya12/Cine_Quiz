@@ -1,0 +1,33 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0040",
+    "type": "seance.creee",
+    "date": "2026-10-01T09:00:00Z",
+    "emetteur": "catalogue",
+    "recepteurs": ["reservations", "recherche"],
+    "type_objet": "Seance",
+    "id_objet": "seance_42",
+    "donnees": {
+      "film_id": "film_dune2",
+      "salle_id": "salle_3",
+      "debut": "2026-10-07T20:00:00Z",
+      "debut_generique": "2026-10-07T22:38:00Z",
+      "fin": "2026-10-07T22:46:00Z",
+      "version": "VF",
+      "tarifs": { "plein": 11.50, "reduit": 9.00, "enfant": 7.00 },
+      "statut": "programmee"
+    },
+    "contexte": {
+      "titre_film": "Dune : Deuxième partie",
+      "plan": {
+        "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"],
+        "places_par_rangee": 20,
+        "places_pmr": ["A1", "A2"]
+      }
+    }
+  },
+  "reactions": [
+    { "service": "reservations", "effet": "crée le réplica SeanceReplica" },
+    { "service": "recherche", "effet": "ajoute la séance au document du film" }
+  ]
+}

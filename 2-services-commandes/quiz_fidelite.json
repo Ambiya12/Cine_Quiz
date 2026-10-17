@@ -1,0 +1,66 @@
+{
+  "service": "quiz_fidelite",
+  "base": "redis",
+  "commandes": [
+    {
+      "nom": "ConfirmerPresence",
+      "acteur": "spectateur",
+      "donnees": { "billet_id": "bil_981_2", "code_generique": "seance_42|88123|9f2c..." },
+      "verifications": [
+        "la signature du code est valide",
+        "le créneau du code est le créneau actuel ou le précédent",
+        "une tentative existe pour ce billet et cette séance",
+        "la tentative est en attente de présence"
+      ],
+      "effet": "la tentative passe au statut ouverte, pour 2 heures",
+      "evenement": "quiz.ouvert"
+    },
+    {
+      "nom": "DemarrerQuiz",
+      "acteur": "spectateur",
+      "donnees": { "billet_id": "bil_981_2" },
+      "verifications": [
+        "la tentative est ouverte",
+        "la fenêtre de 2 heures n'est pas dépassée"
+      ],
+      "effet": "tire 10 questions au hasard parmi celles du film, mélange les choix ; la tentative passe au statut en_cours",
+      "evenement": null
+    },
+    {
+      "nom": "RepondreQuestion",
+      "acteur": "spectateur",
+      "donnees": { "billet_id": "bil_981_2", "question_id": "q7", "reponse": 2 },
+      "verifications": [
+        "la tentative est en cours",
+        "la question est celle actuellement posée",
+        "les 15 secondes ne sont pas écoulées ; sinon la réponse est comptée fausse"
+      ],
+      "effet": "enregistre la réponse et envoie la question suivante ; après la 10e, la tentative passe au statut terminee",
+      "evenement": "quiz.termine"
+    },
+    {
+      "nom": "EchangerPoints",
+      "acteur": "spectateur",
+      "donnees": { "client_id": "client_12", "recompense": "boisson" },
+      "verifications": [
+        "la récompense existe dans le catalogue de récompenses",
+        "le solde de points est suffisant"
+      ],
+      "effet": "débite le solde du compte fidélité ; les points cumulés ne changent pas",
+      "evenement": "points.echanges"
+    },
+        {
+      "nom": "UtiliserCoupon",
+      "acteur": "agent",
+      "donnees": { "coupon_id": "cpn_55", "jeton_qr": "e94d..." },
+      "verifications": [
+        "le coupon existe",
+        "le jeton correspond au coupon",
+        "il n'a pas déjà été utilisé",
+        "il n'est pas expiré"
+      ],
+      "effet": "le coupon est marqué comme utilisé, avec la date et l'heure",
+      "evenement": "coupon.utilise"
+    }
+  ]
+}

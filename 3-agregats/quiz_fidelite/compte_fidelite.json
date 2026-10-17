@@ -1,0 +1,33 @@
+{
+  "agregat": "CompteFidelite",
+  "service": "quiz_fidelite",
+  "stockage": "un hash Redis compte:{client_id} pour les soldes et les compteurs, une liste Redis pour l'historique, persistance AOF activée",
+  "regles": [
+    "le solde ne peut jamais être négatif",
+    "les points cumulés ne font qu'augmenter, même quand on dépense",
+    "un badge se débloque quand son compteur atteint le seuil, une seule fois, et ne se perd jamais",
+    "chaque mouvement de points est inscrit dans l'historique"
+  ],
+  "references": ["client_id"],
+  "exemple": {
+    "client_id": "client_12",
+    "solde_points": 0,
+    "points_cumules": 150,
+    "badges": [
+      { "badge": "premier_quiz", "obtenu_le": "2026-10-07T23:08:00Z" }
+    ],
+    "compteurs": {
+      "seances_vues": 1,
+      "quiz_termines": 1,
+      "sans_fautes": 0,
+      "seances_vost": 0,
+      "films_par_genre": { "science-fiction": 1, "aventure": 1 }
+    },
+    "historique": [
+      { "date": "2026-10-07T19:53:00Z", "motif": "presence", "film_id": "film_dune2", "points": 10 },
+      { "date": "2026-10-07T23:08:00Z", "motif": "quiz", "film_id": "film_dune2", "points": 90 },
+      { "date": "2026-10-07T23:08:00Z", "motif": "badge", "badge": "premier_quiz", "points": 50 },
+      { "date": "2026-10-08T10:15:00Z", "motif": "echange", "recompense": "boisson", "points": -150 }
+    ]
+  }
+}

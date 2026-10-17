@@ -1,0 +1,26 @@
+{
+  "replica": "QuestionsFilmReplica",
+  "dans_le_service": "quiz_fidelite",
+  "source": "catalogue : agrégat Film (titre, genres et questions)",
+  "cree_par": "film.cree",
+  "mis_a_jour_par": ["film.modifie"],
+  "usage": [
+    "tirer 10 questions au hasard au démarrage d'un quiz",
+    "corriger les réponses",
+    "compter les films vus par genre pour les badges"
+  ],
+  "stockage": "un hash Redis film:{film_id} pour le titre et les genres, un hash Redis questions:{film_id} pour les questions",
+  "exemple": {
+    "film_id": "film_dune2",
+    "titre": "Dune : Deuxième partie",
+    "genres": ["science-fiction", "aventure"],
+    "questions": [
+      {
+        "question_id": "q1",
+        "texte": "Quelle est la couleur des yeux des Fremen ?",
+        "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
+        "reponse": 1
+      }
+    ]
+  }
+}

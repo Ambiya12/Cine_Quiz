@@ -1,0 +1,11 @@
+project:
+  type: default
+
+lang: fr
+
+filters:
+  - include-code-files
+
+format:
+  html:
+    toc: true

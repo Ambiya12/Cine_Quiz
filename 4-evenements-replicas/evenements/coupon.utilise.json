@@ -1,0 +1,23 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0912",
+    "type": "coupon.utilise",
+    "date": "2026-10-15T19:40:00Z",
+    "emetteur": "quiz_fidelite",
+    "recepteurs": ["fournisseurs"],
+    "type_objet": "Coupon",
+    "id_objet": "cpn_55",
+    "modifications": [
+      { "donnee": "utilise", "nouvelle_valeur": true },
+      { "donnee": "utilise_le", "nouvelle_valeur": "2026-10-15T19:40:00Z" }
+    ],
+    "contexte": {
+      "type": "popcorn_moyen",
+      "fournisseur_id": "fourn_popcorn_1",
+      "film_origine_id": "film_dune2"
+    }
+  },
+  "reactions": [
+    { "service": "fournisseurs", "effet": "conserve l'événement tel quel, puis ajoute 1 au compteur popcorn_moyen du fournisseur pour le 15 octobre" }
+  ]
+}

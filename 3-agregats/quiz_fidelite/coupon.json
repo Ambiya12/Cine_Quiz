@@ -1,0 +1,26 @@
+{
+  "agregat": "Coupon",
+  "service": "quiz_fidelite",
+  "stockage": "un hash Redis coupon:{coupon_id} ; la clé est conservée après expiration pour garder la trace des coupons utilisés",
+  "regles": [
+    "utilisable une seule fois",
+    "utilisable seulement au comptoir de confiserie",
+    "valable 30 jours après son émission",
+    "rattaché au client, pas au billet : il peut servir lors de n'importe quelle visite",
+    "le QR code contient un jeton secret, généré aléatoirement à la création, sans lequel le coupon ne peut pas être utilisé"
+  ],
+  "references": ["client_id", "fournisseur_id", "film_origine_id"],
+  "exemple": {
+    "coupon_id": "cpn_55",
+    "client_id": "client_12",
+    "type": "popcorn_moyen",
+    "origine": "quiz",
+    "film_origine_id": "film_dune2",
+    "fournisseur_id": "fourn_popcorn_1",
+    "jeton_qr": "e94d...",
+    "emis_le": "2026-10-07T23:08:00Z",
+    "expire_le": "2026-11-06T23:08:00Z",
+    "utilise": true,
+    "utilise_le": "2026-10-15T19:40:00Z"
+  }
+}

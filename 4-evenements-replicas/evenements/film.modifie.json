@@ -1,0 +1,26 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0002",
+    "type": "film.modifie",
+    "date": "2026-09-28T09:05:00Z",
+    "emetteur": "catalogue",
+    "recepteurs": ["quiz_fidelite", "social", "recherche"],
+    "type_objet": "Film",
+    "id_objet": "film_dune2",
+    "modifications": [
+      {
+        "donnee": "questions.q1",
+        "nouvelle_valeur": {
+          "texte": "Quelle est la couleur des yeux des Fremen ?",
+          "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
+          "reponse": 1
+        }
+      }
+    ]
+  },
+  "reactions": [
+    { "service": "quiz_fidelite", "effet": "ajoute la question q1 à son réplica" },
+    { "service": "social", "effet": "ignore l'événement : seuls le titre et les genres l'intéressent" },
+    { "service": "recherche", "effet": "ignore l'événement : les questions ne sont pas indexées" }
+  ]
+}

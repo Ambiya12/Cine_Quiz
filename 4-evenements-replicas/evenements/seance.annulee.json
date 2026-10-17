@@ -1,0 +1,19 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0090",
+    "type": "seance.annulee",
+    "date": "2026-10-09T17:30:00Z",
+    "emetteur": "catalogue",
+    "recepteurs": ["reservations", "recherche"],
+    "type_objet": "Seance",
+    "id_objet": "seance_57",
+    "modifications": [
+      { "donnee": "statut", "nouvelle_valeur": "annulee" }
+    ],
+    "contexte": { "motif": "panne du projecteur" }
+  },
+  "reactions": [
+    { "service": "reservations", "effet": "marque la séance annulée dans son réplica, annule toutes ses réservations avec un remboursement total, et publie un reservation.annulee pour chacune" },
+    { "service": "recherche", "effet": "retire la séance des résultats" }
+  ]
+}

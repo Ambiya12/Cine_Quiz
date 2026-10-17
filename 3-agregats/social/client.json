@@ -1,0 +1,26 @@
+{
+  "agregat": "Client",
+  "service": "social",
+  "stockage": "un nœud Client dans Neo4j, avec ses relations AMI_DE, VA_VOIR et A_VU",
+  "regles": [
+    "le pseudo est unique",
+    "un client ne peut pas être ami avec lui-même",
+    "l'amitié est réciproque et immédiate",
+    "les relations VA_VOIR et A_VU sont créées uniquement par des événements, jamais à la main",
+    "par défaut, les films du client ne sont pas partagés avec ses amis",
+    "les amis ne voient les relations VA_VOIR et A_VU d'un client que s'il a activé le partage",
+    "le client voit toujours son propre historique, quel que soit le réglage"
+  ],
+  "references": ["film_id"],
+  "exemple": {
+    "client_id": "client_12",
+    "pseudo": "lea_cine",
+    "genres_preferes": ["science-fiction"],
+    "partager_activite": false,
+    "amis": ["client_40"],
+    "va_voir": [],
+    "films_vus": [
+      { "film_id": "film_dune2", "seance_id": "seance_42", "score_quiz": 9 }
+    ]
+  }
+}

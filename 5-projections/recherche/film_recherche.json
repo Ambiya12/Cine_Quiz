@@ -1,0 +1,35 @@
+{
+  "projection": "FilmRecherche",
+  "service": "recherche",
+  "base": "elasticsearch",
+  "question_metier": "Quels films correspondent à ce que tape le spectateur, même avec une faute de frappe, et quelles sont leurs séances ?",
+  "evenements_sources": ["film.cree", "film.modifie", "seance.creee", "seance.modifiee", "seance.annulee"],
+  "transformation": [
+    "un document par film, avec ses séances à l'intérieur",
+    "seuls le titre, le synopsis et les genres du film sont gardés ; les questions du quiz sont ignorées",
+    "chaque séance garde son horaire, sa version et son tarif le plus bas",
+    "le film garde aussi le tarif le plus bas de toutes ses séances, pour l'affichage « à partir de »",
+    "une séance annulée est retirée du document ; un film retiré de l'affiche est retiré de l'index"
+  ],
+  "regles": [
+    "l'index est une copie en lecture seule : aucune commande ne le modifie directement",
+    "à chaque événement, le document du film concerné est reconstruit puis réindexé"
+  ],
+  "evolution": "de nouveaux filtres (âge minimum, durée, note) peuvent être ajoutés en enrichissant les documents à partir des événements conservés",
+  "stockage": "un document par film dans l'index films d'Elasticsearch",
+  "exemple": {
+    "film_id": "film_dune2",
+    "titre": "Dune : Deuxième partie",
+    "synopsis": "...",
+    "genres": ["science-fiction", "aventure"],
+    "a_partir_de": 7.00,
+    "seances": [
+      {
+        "seance_id": "seance_42",
+        "debut": "2026-10-07T20:00:00Z",
+        "version": "VF",
+        "tarif_min": 7.00
+      }
+    ]
+  }
+}

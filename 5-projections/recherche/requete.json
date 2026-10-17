@@ -1,0 +1,51 @@
+{
+  "index": "films",
+  "structure_de_l_index": {
+    "mappings": {
+      "properties": {
+        "film_id": { "type": "keyword" },
+        "titre": { "type": "text" },
+        "synopsis": { "type": "text" },
+        "genres": { "type": "keyword" },
+        "a_partir_de": { "type": "float" },
+        "seances": {
+          "type": "nested",
+          "properties": {
+            "seance_id": { "type": "keyword" },
+            "debut": { "type": "date" },
+            "version": { "type": "keyword" },
+            "tarif_min": { "type": "float" }
+          }
+        }
+      }
+    }
+  },
+  "recherche": {
+    "description": "le spectateur tape « Dnue », filtre sur la science-fiction et cherche une séance en VF le 7 octobre",
+    "requete": {
+      "query": {
+        "bool": {
+          "must": {
+            "match": { "titre": { "query": "Dnue", "fuzziness": "AUTO" } }
+          },
+          "filter": [
+            { "term": { "genres": "science-fiction" } },
+            {
+              "nested": {
+                "path": "seances",
+                "query": {
+                  "bool": {
+                    "filter": [
+                      { "term": { "seances.version": "VF" } },
+                      { "range": { "seances.debut": { "gte": "2026-10-07T00:00:00Z", "lte": "2026-10-07T23:59:59Z" } } }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

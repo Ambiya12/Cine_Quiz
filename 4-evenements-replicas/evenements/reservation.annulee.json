@@ -1,0 +1,28 @@
+{
+  "evenement": {
+    "id_evenement": "evt_0350",
+    "type": "reservation.annulee",
+    "date": "2026-10-06T18:20:00Z",
+    "emetteur": "reservations",
+    "recepteurs": ["social"],
+    "type_objet": "Reservation",
+    "id_objet": "res_1002",
+    "modifications": [
+      { "donnee": "statut", "nouvelle_valeur": "annulee" },
+      { "donnee": "billets.statut", "nouvelle_valeur": "annulee" },
+      { "donnee": "montant", "nouvelle_valeur": 0 },
+      {
+        "donnee": "paiements",
+        "nouvelle_valeur": { "type": "remboursement", "montant": -11.50, "reference": "rmb_17", "date": "2026-10-06T18:20:00Z" }
+      }
+    ],
+    "contexte": {
+      "acheteur_id": "client_77",
+      "film_id": "film_dune2",
+      "motif": "annulation_client"
+    }
+  },
+  "reactions": [
+    { "service": "social", "effet": "retire la relation VA_VOIR entre l'acheteur et le film" }
+  ]
+}
