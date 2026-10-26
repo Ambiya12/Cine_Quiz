@@ -19,6 +19,6 @@
   "reactions": [
     { "service": "quiz_fidelite", "effet": "crée le réplica QuestionsFilmReplica, encore sans questions" },
     { "service": "social", "effet": "crée le nœud Film (FilmReplica)" },
-    { "service": "recherche", "effet": "indexe le film (voir 6-projections)" }
+    { "service": "recherche", "effet": "indexe le film (voir 5-projections)" }
   ]
 }

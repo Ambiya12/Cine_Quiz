@@ -1,28 +1,649 @@
 ---
 title: "CinéQuiz"
 subtitle: "Projet NoSQL : services, agrégats, événements et projections"
-author: "Nirzara , Amery , Galystan, Stéphanie , Amena"
+author: "Nirzara, Amery, Galystan, Stéphanie, Amena"
 date: today
+toc-depth: 2
 ---
 
+## Présentation du projet
 
+CinéQuiz est l'application d'un cinéma fictif. Elle accompagne le spectateur de
+la réservation d'une place jusqu'à l'utilisation de récompenses au comptoir de
+confiserie. Après la séance, le spectateur peut répondre à un quiz sur le film
+qu'il vient de voir. Sa participation lui rapporte des points, des badges et,
+selon son résultat, un coupon.
 
-## L'agrégat Film
+Le projet étudie la répartition des données entre plusieurs services utilisant
+des bases NoSQL. Chaque service est propriétaire de ses données et maintient
+localement les copies nécessaires à son fonctionnement. Les modifications utiles
+aux autres services sont annoncées par des événements.
 
-Les questions du quiz sont dans le film, parce qu'elles n'existent que pour lui
-et s'éditent avec lui.
+Ce rapport présente la conception décrite dans le dépôt : **six services,
+21 commandes, huit agrégats métier, trois réplicas et deux projections**.
+Les fichiers JSON servent d'exemples de contrats et de modèles ; le dépôt ne
+contient pas encore une application exécutable.
+
+::: {.callout-note}
+## Statut des choix métier
+
+Les règles présentées ci-dessous reprennent les propositions existantes.
+Leur validation collective reste à renseigner dans [le registre des
+décisions](DECISIONS.md). Une proposition décrite dans ce rapport ne constitue
+donc pas une décision déjà approuvée par l'équipe. Les points de conception
+encore ouverts sont regroupés en fin de rapport.
+:::
+
+### Périmètre
+
+Le parcours couvre le catalogue, les séances, les réservations, les billets,
+le quiz, la fidélité, les relations sociales et les consultations destinées aux
+spectateurs et aux fournisseurs. Le paiement et l'authentification sont prévus
+via des prestataires simulés. Leur réalisation complète est hors du périmètre
+proposé.
+
+Les classements, la notation des films, les invitations d'amis à accepter,
+la gestion de plusieurs cinémas et les projections supplémentaires restent
+des évolutions possibles, recensées dans `DECISIONS.md`.
+
+### Organisation des livrables
+
+| Étape des consignes | Éléments du dépôt | Contenu |
+|---|---|---|
+| 1 — Initier le projet | `README.md`, `index.qmd`, `DECISIONS.md` | Présentation, équipe, rapport et propositions à valider |
+| 2 — Définir les services | `2-services-commandes/` | Commandes, acteurs, données d'entrée et effets |
+| 3 — Définir les agrégats | `3-agregats/` | Modèles JSON, règles et données de référence |
+| 4 — Découpler les services | `4-evenements-replicas/` | Événements et copies locales alimentées par ces événements |
+| 6 — Projeter les données | `5-projections/` | Modèles de lecture et requêtes de nouveaux services |
+
+Le dossier `5-projections/` correspond à l'étape 6 des consignes fournies,
+dont la numérotation passe directement de 4 à 6.
+
+## Les acteurs
+
+| Acteur | Actions dans le parcours proposé |
+|---|---|
+| Spectateur | Consulter les films et séances, réserver, transférer un billet, participer au quiz, échanger ses points et gérer son profil social |
+| Gérant | Créer les films et les questions, définir les salles, programmer, modifier ou annuler les séances |
+| Agent du cinéma | Scanner les billets, vérifier les justificatifs des tarifs concernés et utiliser les coupons au comptoir |
+| Fournisseur de confiserie | Consulter les quantités de produits remises contre des coupons, pour le suivi et le réapprovisionnement |
+
+L'application du spectateur affiche les billets, les quiz et les coupons. L'écran
+du cinéma affiche le QR code du générique. Ces interfaces ne sont pas propriétaires
+des agrégats métier. Leur connexion aux services, notamment pour les
+notifications, reste à préciser lors de la réalisation.
+
+## Les règles métier
+
+Les propositions suivantes structurent les commandes et les agrégats existants.
+
+### Programmation et réservation
+
+- Un film contient sa banque de questions. Une séance nécessite au moins dix
+  questions ; la proposition vise une banque d'environ quarante questions.
+- Une salle possède un plan et une capacité cohérents. Deux séances ne doivent
+  pas occuper la même salle au même moment.
+- Les horaires du générique et de fin sont calculés à partir du début de séance
+  et des durées du film.
+- Chaque place réservée produit un billet avec son propre QR code. Une place
+  ne doit être vendue qu'une seule fois pour une séance donnée.
+- Une place peut être bloquée pendant cinq minutes avant la confirmation du
+  paiement. Le prix du billet reste celui de l'achat après une modification des tarifs.
+- Les tarifs proposés sont plein, réduit et enfant. Le justificatif est vérifié
+  à l'entrée pour les tarifs concernés.
+- L'acheteur peut annuler plus de trente minutes avant la séance si aucun billet
+  n'a été validé. Le scénario prévoit un remboursement total. La modification
+  d'une réservation n'est pas proposée.
+- Le titulaire d'un billet peut le transférer avant sa validation. La proposition
+  actuelle ne publie pas d'événement de transfert.
+
+### Quiz et fidélité
+
+La validation d'un billet crée une tentative en attente de présence et attribue
+les points de présence. Le scan du QR code pendant le générique ouvre ensuite
+une fenêtre de deux heures pour démarrer le quiz. Dix questions sont tirées au
+hasard ; chacune dispose de quinze secondes, mesurées côté serveur. Une réponse
+absente ou hors délai compte comme fausse. Les bonnes réponses restent côté serveur.
+
+| Attribution proposée | Points |
+|---|---:|
+| Présence, lors de la validation du billet | 10 |
+| Bonne réponse | 10 |
+| Bonus pour un score de 10/10 | 20 |
+| Nouveau badge débloqué | 50 |
+
+Le solde disponible diminue lors d'un échange, tandis que les points cumulés
+restent acquis. Les récompenses proposées coûtent 150 points pour une boisson,
+200 pour un popcorn moyen et 300 pour un menu. Les badges utilisent des compteurs
+de participation, de sans-fautes, de genres et de séances en VOST.
+
+Un score inférieur à 8/10 ne donne pas de coupon de quiz. Pour 8 ou 9/10, la
+proposition prévoit un tirage à 50 % ; à 10/10, le coupon est garanti. Les coupons
+sont rattachés au client, valables trente jours et utilisables une seule fois
+au comptoir grâce à un jeton secret. L'utilisation sans billet du jour reste
+une question à valider.
+
+::: {.callout-note collapse="true"}
+## Barèmes, récompenses et badges proposés
+
+```{.json include="3-agregats/quiz_fidelite/baremes.json"}
+```
+:::
+
+### Activité sociale et confidentialité
+
+L'amitié est proposée comme réciproque et immédiate. Le partage d'activité est
+désactivé par défaut. Les amis ne voient les films prévus ou vus que lorsque
+le client active ce partage ; le client conserve l'accès à son propre historique.
+Les recommandations utilisent les films vus et affichent des titres et des
+comptages, sans identifier les autres spectateurs.
+
+## Les services
+
+### Responsabilités et choix des bases
+
+| Service | Données sous sa responsabilité | Base proposée et justification |
+|---|---|---|
+| Catalogue | Films, questions, salles et séances | MongoDB : les documents regroupent les listes et objets imbriqués d'un film ou d'une salle |
+| Réservations | Réservations, billets et paiements simulés | Cassandra : les accès sont organisés par réservation, séance/place et titulaire ; Redis porte les blocages temporaires |
+| Quiz et fidélité | Tentatives, comptes, badges et coupons | Redis : les clés identifient les tentatives et les comptes ; les expirations conviennent aux fenêtres temporaires, avec une politique de persistance à préciser pour les données durables |
+| Social | Profils et relations entre clients et films | Neo4j : les parcours d'amitié et de films vus s'expriment comme des traversées de graphe |
+| Recherche | Index de films et de séances | Elasticsearch : un modèle de lecture dédié porte la recherche textuelle, la tolérance aux fautes et les filtres |
+| Fournisseurs | Consommations regroupées et événements reçus | MongoDB : un document par fournisseur et par jour regroupe les compteurs, consultés par agrégation |
+
+Catalogue, Réservations, Quiz et fidélité, et Social reçoivent les commandes
+métier. Recherche et Fournisseurs sont des services de consultation : leurs
+données sont calculées à partir d'événements. Ils n'ont pas de commande de
+modification métier dans les fichiers actuels.
+
+### Propriété des données et autonomie
+
+Seul le service propriétaire modifie un agrégat métier. Une référence comme
+`film_id` identifie une donnée distante ; elle ne suppose pas une jointure
+entre bases. Lorsqu'un autre service a besoin d'informations du film, il
+maintient une copie locale adaptée à ses lectures.
+
+Par exemple, Réservations reçoit le plan et les tarifs d'une séance pour traiter
+une réservation sans relire le Catalogue. Quiz et fidélité reçoit les questions
+du film pour tirer et corriger son quiz localement. Les mises à jour de ces copies
+sont asynchrones : le rapport décrit un objectif de cohérence à terme, et les
+modalités de livraison et de reprise restent à détailler.
+
+```{mermaid}
+flowchart LR
+    C["Catalogue · MongoDB"] -->|"Films et séances"| T["Événements · Redis Streams"]
+    R["Réservations · Cassandra + Redis"] -->|"Réservations et billets"| T
+    Q["Quiz et fidélité · Redis"] -->|"Quiz, points et coupons"| T
+    T -->|"Séances"| R
+    T -->|"Films et billets validés ; réactions internes"| Q
+    T -->|"Films, réservations et participation"| S["Social · Neo4j"]
+    T -->|"Films et séances"| E["Recherche · Elasticsearch"]
+    T -->|"Coupons utilisés"| F["Fournisseurs · MongoDB"]
+```
+
+Les flèches regroupent les échanges détaillés dans la matrice des événements.
+Redis Streams est le transport proposé dans le dépôt, avec un flux par service
+émetteur. Le schéma ne représente pas des services déjà déployés.
+
+## Les commandes
+
+Une commande exprime une demande de traitement. Son fichier indique le service,
+l'acteur, les données d'entrée, les vérifications, l'effet attendu et, lorsqu'il
+y en a un, l'événement produit. L'événement décrit ensuite un fait accompli.
+Une valeur `evenement: null` signifie qu'aucune publication n'est définie
+pour cette commande dans la conception actuelle.
+
+| Service | Commandes définies | Nombre |
+|---|---|---:|
+| Catalogue | `CreerFilm`, `ModifierFilm`, `AjouterQuestion`, `RetirerFilmDeLAffiche`, `CreerSalle`, `CreerSeance`, `ModifierSeance`, `AnnulerSeance` | 8 |
+| Réservations | `BloquerPlace`, `ConfirmerReservation`, `AnnulerReservation`, `TransfererBillet`, `ValiderBillet` | 5 |
+| Quiz et fidélité | `ConfirmerPresence`, `DemarrerQuiz`, `RepondreQuestion`, `EchangerPoints`, `UtiliserCoupon` | 5 |
+| Social | `CreerClient`, `AjouterAmi`, `ModifierConfidentialite` | 3 |
+
+Les commandes ne suffisent pas à décrire toutes les lectures : consulter un
+billet, rechercher un film et obtenir un total fournisseur sont des consultations.
+Les deux projections et les requêtes sociales ci-dessous illustrent ces accès.
+
+::: {.callout-note collapse="true"}
+## Commandes du Catalogue
+
+```{.json include="2-services-commandes/catalogue.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Commandes de Réservations
+
+```{.json include="2-services-commandes/reservations.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Commandes de Quiz et fidélité
+
+```{.json include="2-services-commandes/quiz_fidelite.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Commandes du service Social
+
+```{.json include="2-services-commandes/social.json"}
+```
+:::
+
+## Les agrégats
+
+Un agrégat regroupe des données soumises aux règles d'un même objet métier.
+Les fichiers précisent son propriétaire, son stockage envisagé, ses règles,
+ses références et un exemple. L'objet JSON présente le modèle logique ; il ne
+constitue pas à lui seul un schéma physique ou une transaction entre bases.
+
+### Catalogue : Film, Salle et Séance
+
+**Film** regroupe les informations de présentation, le casting et la banque de
+questions. Les questions sont incluses parce qu'elles sont éditées pour ce film.
+Un retrait de l'affiche conserve l'historique. L'indice `reponse` d'une question
+est compris entre 0 et 3.
+
+**Salle** porte le plan, la capacité et les places PMR. **Séance** référence un
+film et une salle, avec ses horaires, sa version, ses tarifs et son statut.
+Les séparer permet à plusieurs séances de référencer un même film et une même salle.
+La vérification des conflits de salle mobilise plusieurs séances ; son mécanisme
+de contrôle reste à définir.
+
+::: {.callout-note collapse="true"}
+## Agrégat Film
 
 ```{.json include="3-agregats/catalogue/film.json"}
 ```
+:::
 
+::: {.callout-note collapse="true"}
+## Agrégat Salle
 
+```{.json include="3-agregats/catalogue/salle.json"}
+```
+:::
 
-## Présentation du projet
-## Les acteurs
-## Les règles métier
-## Les services
-## Les commandes
-## Les agrégats
+::: {.callout-note collapse="true"}
+## Agrégat Séance
+
+```{.json include="3-agregats/catalogue/seance.json"}
+```
+:::
+
+### Réservations : Réservation
+
+**Réservation** regroupe l'acheteur, les billets et l'historique des paiements.
+L'acheteur est distinct du titulaire : après un transfert, il reste l'acheteur de
+la réservation, tandis que le destinataire devient titulaire du billet concerné.
+
+Le stockage proposé prévoit trois tables Cassandra pour les lectures par
+réservation, par séance/place et par titulaire. Il s'agit de plusieurs
+représentations des données d'un même service ; la synchronisation de ces tables
+et le contrôle d'une vente unique restent à préciser.
+
+::: {.callout-note collapse="true"}
+## Agrégat Réservation
+
+```{.json include="3-agregats/reservations/reservation.json"}
+```
+:::
+
+### Quiz et fidélité : Tentative, CompteFidelite et Coupon
+
+**Tentative** est identifiée par le billet validé. Elle conserve les horaires
+d'accès, les questions tirées, la progression et le score. **CompteFidelite**
+regroupe solde, points cumulés, badges, compteurs et historique. **Coupon**
+possède son propre identifiant, sa date limite et son état d'utilisation :
+son cycle de vie se poursuit après la fin du quiz.
+
+Le dépôt prévoit des hashes Redis et une liste pour l'historique du compte,
+avec une persistance AOF annoncée pour la fidélité. L'expiration d'une tentative
+et la conservation des soldes ou des preuves d'utilisation doivent être traitées
+séparément : toutes les données du service ne sont pas temporaires.
+
+::: {.callout-note collapse="true"}
+## Agrégat Tentative
+
+```{.json include="3-agregats/quiz_fidelite/tentative.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Agrégat CompteFidelite
+
+```{.json include="3-agregats/quiz_fidelite/compte_fidelite.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Agrégat Coupon
+
+```{.json include="3-agregats/quiz_fidelite/coupon.json"}
+```
+:::
+
+### Social : Client
+
+**Client** contient le profil et le choix de confidentialité. Ses amis et son
+activité sont représentés par les relations `AMI_DE`, `VA_VOIR` et `A_VU`.
+Le JSON donne une vue lisible de ces relations ; le stockage proposé est un
+graphe Neo4j reliant les clients à des nœuds Film issus du Catalogue.
+
+::: {.callout-note collapse="true"}
+## Agrégat Client
+
+```{.json include="3-agregats/social/client.json"}
+```
+:::
+
+Les requêtes existantes illustrent « mes amis vont voir » avec filtrage de
+confidentialité et la recommandation anonyme « les spectateurs de ce film ont
+aussi vu ». La gestion de plusieurs séances d'un même film et la suppression
+des activités passées restent à préciser.
+
+::: {.callout-note collapse="true"}
+## Requêtes du graphe social
+
+```{.cypher include="3-agregats/social/requetes.cypher"}
+```
+:::
+
 ## Les événements et les réplicas
+
+### Contrat d'un événement
+
+Chaque événement identifie le fait, sa date, le service émetteur, les récepteurs
+et l'agrégat concerné. `donnees` porte les valeurs utiles à une création ;
+`modifications` indique les données modifiées et leurs nouvelles valeurs.
+`contexte` ajoute les informations dont les récepteurs ont besoin pour réagir
+sans rappeler l'émetteur.
+
+Les fichiers distinguent le message publié, dans `evenement`, des réactions
+attendues, dans `reactions`. Ces réactions documentent le comportement des
+récepteurs ; elles ne constituent pas des consommateurs déjà implémentés.
+
+::: {.callout-note collapse="true"}
+## Format commun des événements
+
+```{.json include="4-evenements-replicas/format-evenement.json"}
+```
+:::
+
+### Matrice des échanges définis
+
+| Événement | Émetteur | Récepteurs déclarés | Effet attendu |
+|---|---|---|---|
+| `film.cree` | Catalogue | Quiz et fidélité, Social, Recherche | Créer les copies du film et son document de recherche |
+| `film.modifie` | Catalogue | Quiz et fidélité, Social, Recherche | Appliquer les modifications pertinentes ; l'exemple d'ajout de question concerne seulement Quiz |
+| `seance.creee` | Catalogue | Réservations, Recherche | Créer le réplica de séance et ajouter une séance au film recherché |
+| `seance.modifiee` | Catalogue | Réservations, Recherche | Actualiser les informations de séance et l'affichage des tarifs |
+| `seance.annulee` | Catalogue | Réservations, Recherche | Annuler les réservations avec publication d'événements et retirer la séance des résultats |
+| `reservation.confirmee` | Réservations | Social | Créer l'activité `VA_VOIR` de l'acheteur |
+| `reservation.annulee` | Réservations | Social | Retirer l'activité associée dans le modèle actuel |
+| `billet.valide` | Réservations | Quiz et fidélité, Social | Créer une tentative, créditer la présence et enregistrer le film vu |
+| `quiz.ouvert` | Quiz et fidélité | Application spectateur | Signaler la disponibilité du quiz et son échéance |
+| `quiz.termine` | Quiz et fidélité | Quiz et fidélité, Social | Calculer les gains, mettre à jour les compteurs et enregistrer le score social |
+| `points.echanges` | Quiz et fidélité | Quiz et fidélité | Créer un coupon à la suite du débit de points |
+| `coupon.emis` | Quiz et fidélité | Application spectateur | Afficher le coupon et son QR code |
+| `coupon.utilise` | Quiz et fidélité | Fournisseurs | Alimenter les consommations journalières |
+
+Quiz et fidélité apparaît parfois comme son propre récepteur : les exemples
+décrivent des réactions entre ses agrégats. Cela ne crée pas un nouveau service.
+La remise des notifications à la bonne application spectateur reste un point
+d'interface à définir.
+
+::: {.callout-note collapse="true"}
+## Événements du Catalogue : films
+
+```{.json include="4-evenements-replicas/evenements/film.cree.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/film.modifie.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Événements du Catalogue : séances
+
+```{.json include="4-evenements-replicas/evenements/seance.creee.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/seance.modifiee.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/seance.annulee.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Événements de Réservations
+
+```{.json include="4-evenements-replicas/evenements/reservation.confirmee.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/reservation.annulee.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/billet.valide.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Événements de quiz et de points
+
+```{.json include="4-evenements-replicas/evenements/quiz.ouvert.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/quiz.termine.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/points.echanges.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Événements de coupons
+
+```{.json include="4-evenements-replicas/evenements/coupon.emis.json"}
+```
+
+```{.json include="4-evenements-replicas/evenements/coupon.utilise.json"}
+```
+:::
+
+### Création et mise à jour des réplicas
+
+Un réplica est une copie locale de données appartenant à un autre service.
+Chaque récepteur conserve uniquement les champs utiles à son activité. La
+réplication vise ici l'autonomie des traitements ; ces copies ne sont pas des
+instances de secours du service propriétaire.
+
+| Réplica | Service destinataire | Création | Mise à jour | Usage local |
+|---|---|---|---|---|
+| `SeanceReplica` | Réservations | `seance.creee` | `seance.modifiee`, `seance.annulee` | Plan, tarifs, horaires et statut pour traiter les billets |
+| `QuestionsFilmReplica` | Quiz et fidélité | `film.cree` | `film.modifie` | Questions et réponses pour le quiz, genres pour les compteurs |
+| `FilmReplica` | Social | `film.cree` | `film.modifie` | Titre et genres des nœuds Film |
+
+La paire `film.cree` / `film.modifie` illustre la création puis la mise à jour
+d'un réplica : le premier message crée un film sans questions ; le second ajoute
+la question `q1`. Social et Recherche ignorent cette modification de question,
+car leurs modèles ne la conservent pas. De même, une modification du tarif réduit
+met à jour `SeanceReplica` sans modifier le prix des billets déjà achetés.
+
+::: {.callout-note collapse="true"}
+## Réplica de séance dans Réservations
+
+```{.json include="4-evenements-replicas/replicas/seance_replica.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Réplica des questions dans Quiz et fidélité
+
+```{.json include="4-evenements-replicas/replicas/questions_film_replica.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Réplica du film dans Social
+
+```{.json include="4-evenements-replicas/replicas/film_replica_social.json"}
+```
+:::
+
 ## Les projections
+
+Une projection transforme les données reçues en un modèle adapté à une question
+de lecture. Elle peut combiner ou agréger plusieurs informations. Recherche et
+Fournisseurs possèdent ainsi leurs propres documents de lecture, sans devenir
+propriétaires des films, des séances ou des coupons d'origine.
+
+### Recherche de films et de séances
+
+La question métier est : « Quels films correspondent à ma recherche et quelles
+séances puis-je choisir ? » Un document Elasticsearch regroupe les informations
+publiques d'un film et ses séances. Les questions du quiz sont exclues. Chaque
+séance expose horaire, version et tarif minimum ; le film possède aussi un prix
+« à partir de ».
+
+La projection reçoit `film.cree`, `film.modifie`, `seance.creee`,
+`seance.modifiee` et `seance.annulee`. Le modèle prévoit de retirer les séances
+annulées et les films retirés de l'affiche. La requête existante recherche
+« Dnue » avec tolérance aux fautes, filtre le genre science-fiction et exige
+une séance en VF le 7 octobre 2026. Le filtre `nested` associe la date et la
+version à une même séance du document.
+
+::: {.callout-note collapse="true"}
+## Document de la projection Recherche
+
+```{.json include="5-projections/recherche/film_recherche.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Structure de l'index et requête Elasticsearch
+
+```{.json include="5-projections/recherche/requete.json"}
+```
+:::
+
+La reconstruction locale reste à détailler : les messages de modification ou
+d'annulation identifient la séance, et une modification de tarif ne fournit
+qu'une valeur partielle. Le service doit pouvoir retrouver le film et recalculer
+les minimums avec ses données locales ou l'historique reçu. Le retrait des séances
+passées nécessite également une règle liée au temps.
+
+### Consommations des fournisseurs
+
+La question métier est : « Combien de produits ai-je fournis, par type et par
+jour, en échange de coupons ? » À partir de `coupon.utilise`, le service conserve
+les données de consommation et regroupe les quantités dans un document MongoDB
+par fournisseur et par date. Cette projection couvre les remises contre coupons,
+pas l'ensemble des ventes payantes de confiserie.
+
+L'exemple contient 42 popcorns moyens et 17 menus, soit 59 remises pour le
+fournisseur concerné le 15 octobre. La requête mensuelle transforme les compteurs
+par produit en lignes puis calcule leurs sommes. Une seconde requête regroupe
+les événements conservés par film d'origine, pour illustrer une nouvelle lecture
+sans modifier le service qui émet les coupons.
+
+::: {.callout-note collapse="true"}
+## Document de consommation journalière
+
+```{.json include="5-projections/fournisseurs/consommation_journaliere.json"}
+```
+:::
+
+::: {.callout-note collapse="true"}
+## Exemples d'alimentation et de requêtes MongoDB
+
+```{.javascript include="5-projections/fournisseurs/requetes.js"}
+```
+:::
+
+L'identifiant d'événement est proposé comme clé pour reconnaître les doublons.
+L'exemple sépare toutefois l'enregistrement du message et l'incrément du compteur :
+la reprise après une interruption entre ces opérations reste à définir.
+Le fichier de projection annonce une conservation de l'événement tel quel,
+tandis que le script en conserve un sous-ensemble aplati ; ce contrat est à harmoniser.
+
+### Évolution vers de nouvelles lectures
+
+Les événements conservés permettent d'envisager d'autres regroupements :
+consommations par heure, par produit ou par film d'origine. Une nouvelle
+projection construit ses propres documents à partir des informations disponibles.
+Elle ne peut pas déduire un champ absent des événements historiques : un filtre
+sur une nouvelle donnée, par exemple l'âge minimum, nécessite que cette donnée
+soit d'abord définie et transmise.
+
 ## Le parcours complet
+
+### Exemple de réservation, de quiz et de récompense
+
+Le scénario suivant relie les exemples existants de `client_12`, `film_dune2`,
+`seance_42` et `res_981`. Les dates et heures sont celles des fichiers, en UTC
+comme l'indique le suffixe `Z`. La banque du film et les réponses de la tentative
+sont abrégées dans les JSON : ils illustrent les modèles et ne constituent pas
+un jeu de données permettant d'exécuter dix questions.
+
+| Étape | Demande ou fait | Service et données modifiées | Événement et conséquence |
+|---|---|---|---|
+| 1. Profil | `CreerClient` | Social crée `client_12`, partage désactivé | Aucun événement défini pour cette commande |
+| 2. Film et salle | `CreerFilm`, `AjouterQuestion`, `CreerSalle` | Catalogue prépare le film et la salle ; l'ajout de questions est répété jusqu'au minimum requis | `film.cree`, puis `film.modifie`, alimentent Quiz, Social et Recherche selon les champs utiles |
+| 3. Programmation | `CreerSeance` | Catalogue crée `seance_42` pour le 7 octobre à 20:00 ; générique à 22:38, fin à 22:46 | `seance.creee` crée le réplica de Réservations et la séance dans Recherche |
+| 4. Choix des places | Deux appels à `BloquerPlace` | Réservations bloque temporairement F7 et F8 pour `client_12` | Aucun événement défini ; expiration proposée après cinq minutes |
+| 5. Achat | `ConfirmerReservation` le 5 octobre | Réservation `res_981`, deux billets à 11,50 € et 9 €, total 20,50 € | `reservation.confirmee` crée l'activité `VA_VOIR` de l'acheteur |
+| 6. Transfert facultatif | `TransfererBillet` pour le premier billet | `client_40` devient titulaire de `bil_981_1` ; l'acheteur reste `client_12` | Aucun événement de transfert prévu ; limitation du suivi social à valider |
+| 7. Entrée | `ValiderBillet` à 19:53 pour le second billet, avec justificatif | Réservations valide `bil_981_2` de `client_12` | `billet.valide` crée la tentative en attente, attribue 10 points et crée l'activité `A_VU` |
+| 8. Générique | `ConfirmerPresence` à 22:41 avec le code de séance | Quiz et fidélité ouvre la tentative jusqu'au 8 octobre à 00:41 pour son démarrage | `quiz.ouvert` informe l'application du spectateur |
+| 9. Participation | `DemarrerQuiz` à 23:05, puis `RepondreQuestion` | Dix questions tirées ; la tentative termine avec un score de 9/10 dans l'exemple | `quiz.termine` attribue 90 points et le badge du premier quiz (+50), puis met à jour le score social |
+| 10. Coupon de quiz | Tirage favorable pour le score de 9/10, dans cet exemple | Quiz et fidélité crée `cpn_55`, un popcorn moyen valable trente jours | `coupon.emis` permet son affichage ; ce gain n'est pas garanti pour tous les scores de 9/10 |
+| 11. Échange de points | `EchangerPoints` le 8 octobre pour une boisson | Le solde de `client_12` passe de 150 à 0 ; les points cumulés restent à 150 | `points.echanges` provoque un autre coupon, d'origine `echange_points`, distinct de `cpn_55` |
+| 12. Comptoir | `UtiliserCoupon` le 15 octobre pour `cpn_55` | Le coupon de popcorn passe à utilisé, avec sa date | `coupon.utilise` ajoute une remise de popcorn aux consommations du fournisseur |
+
+Le gain de points du scénario est : **10 de présence + 90 de réponses + 50 de
+badge = 150 points**. Le coupon de quiz est indépendant de l'échange de ces
+150 points contre une boisson. Une utilisation contribue pour une unité au total
+journalier ; les 59 unités de l'exemple fournisseur représentent plusieurs coupons,
+et non cette seule visite.
+
+### Variantes déjà décrites
+
+La modification du tarif réduit à 8,50 € le 6 octobre actualise le réplica de
+séance ; les deux billets achetés le 5 octobre conservent leurs prix de 11,50 €
+et 9 €. Le tarif enfant restant à 7 €, le minimum de la séance reste à 7 €.
+
+Le fichier `reservation.annulee` illustre une autre réservation, `res_1002`.
+Le fichier `seance.annulee` concerne une autre séance, `seance_57`. Ce sont des
+variantes du parcours : elles ne décrivent pas l'annulation du billet utilisé
+dans le scénario principal. Une annulation cinéma déclenche, dans le modèle
+actuel, l'annulation et le remboursement des réservations et le retrait de la
+séance dans Recherche.
+
+### Points à valider et à compléter
+
+Les éléments ci-dessous signalent les limites des contrats actuels. Ce rapport
+les documente ; il ne modifie pas les règles ni les événements correspondants.
+
+| Sujet | Travail restant dans la conception |
+|---|---|
+| Décisions collectives | Renseigner les validations dans `DECISIONS.md`, dont l'accès au coupon sans billet du jour et le transfert sans événement |
+| Annulations et remboursements | Harmoniser le sens du montant après remboursement et la conservation des paiements ; aligner les conditions d'annulation des commandes et du registre de décisions |
+| Annulation après entrée | Définir le devenir des tentatives, points, badges et coupons ; aucun événement d'annulation ne cible actuellement Quiz et fidélité |
+| Réservation et concurrence | Compléter les contrôles d'état et expliquer la vente unique malgré les blocages temporaires et les écritures dans plusieurs tables |
+| Identité et accès | Préciser les contrôles du titulaire du billet ou du compte et l'acheminement individuel des notifications et des secrets de coupons |
+| Déroulement du quiz | Définir le générateur du QR code, les délais sans réponse, la reprise, la correspondance des choix mélangés et la fin d'un quiz commencé près de l'échéance |
+| Historique social | Préserver les autres réservations d'un même film, distinguer plusieurs séances vues et retirer les activités futures devenues passées |
+| Mise à jour des copies | Définir les opérations sur les tableaux JSON et la propagation des changements de titre ou d'horaires déjà copiés |
+| Fiabilité des événements | Définir abonnements indépendants, ordre, doublons, accusés de réception, reprise et publication après écriture ; empêcher les gains et coupons répétés lors d'un rejeu |
+| Projections | Compléter la reconstruction locale de Recherche, le traitement du temps et la reprise des compteurs Fournisseurs |
+| Stockage et exemples | Préciser clés, index, persistance et rétention ; compléter les données abrégées si une démonstration exécutable est attendue |
+
+La relecture collective peut suivre trois parcours : l'achat jusqu'au coupon,
+l'annulation avec remboursement et la réception répétée d'un événement. Pour
+chacun, il faut vérifier l'agrégat propriétaire, le message publié et les copies
+locales affectées. La réalisation des services et des interfaces fera l'objet
+d'un travail distinct si elle est demandée dans les livrables du cours.

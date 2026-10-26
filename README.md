@@ -48,7 +48,7 @@ Les dossiers suivent les étapes des consignes du projet.
 | `2-services-commandes/` | Les services et leurs commandes |
 | `3-agregats/` | Les agrégats de chaque service et les barèmes de fidélité |
 | `4-evenements-replicas/` | Les événements entre services et les réplicas |
-| `6-projections/` | Les projections vers de nouveaux services et leurs requêtes |
+| `5-projections/` | Les projections vers de nouveaux services et leurs requêtes (étape 6 des consignes) |
 
 
 
