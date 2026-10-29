@@ -13,8 +13,8 @@ ils ont besoin pour rester autonomes.
 1. **Préparation** : le gérant crée les films, leurs questions et les séances.
 2. **Achat** : le spectateur réserve, choisit ses tarifs et paie ; un billet par place.
 3. **Entrée** : un agent scanne chaque billet et vérifie les justificatifs de tarif réduit.
-4. **Générique** : le spectateur scanne le QR code affiché à l'écran ; son quiz s'ouvre pour 2 heures.
-5. **Quiz** : 10 questions tirées au hasard, 15 secondes chacune.
+4. **Générique** : le titulaire scanne le QR code de sa séance pendant le générique ; il dispose de 2 heures pour démarrer.
+5. **Quiz** : 10 questions, 15 secondes chacune, au plus 150 secondes après le démarrage ; les choix mélangés gardent leurs identifiants et leur ordre après reconnexion.
 6. **Récompense** : selon son score, le spectateur peut gagner un coupon.
 7. **Comptoir** : le coupon est utilisé une seule fois ; le fournisseur reçoit les totaux.
 

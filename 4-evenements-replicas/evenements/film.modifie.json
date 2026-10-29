@@ -12,8 +12,13 @@
         "donnee": "questions.q1",
         "nouvelle_valeur": {
           "texte": "Quelle est la couleur des yeux des Fremen ?",
-          "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
-          "reponse": 1
+          "choix": [
+            { "choix_id": "a", "texte": "Vert" },
+            { "choix_id": "b", "texte": "Bleu" },
+            { "choix_id": "c", "texte": "Rouge" },
+            { "choix_id": "d", "texte": "Jaune" }
+          ],
+          "bonne_reponse_id": "b"
         }
       }
     ]

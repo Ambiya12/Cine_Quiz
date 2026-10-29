@@ -6,6 +6,7 @@
     "les questions n'existent que pour ce film et s'éditent avec lui",
     "le début du générique est inférieur à la durée du film",
     "chaque question a exactement 4 choix et une seule bonne réponse",
+    "chaque choix possède un choix_id unique dans sa question et indépendant de sa position ; bonne_reponse_id désigne le choix correct",
     "un film retiré de l'affiche est conservé, jamais supprimé"
   ],
   "references": [],
@@ -22,8 +23,13 @@
       {
         "question_id": "q1",
         "texte": "Quelle est la couleur des yeux des Fremen ?",
-        "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
-        "reponse": 1
+        "choix": [
+          { "choix_id": "a", "texte": "Vert" },
+          { "choix_id": "b", "texte": "Bleu" },
+          { "choix_id": "c", "texte": "Rouge" },
+          { "choix_id": "d", "texte": "Jaune" }
+        ],
+        "bonne_reponse_id": "b"
       }
     ]
   }

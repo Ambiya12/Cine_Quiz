@@ -19,8 +19,9 @@ des profils reste hors périmètre.
 | Annulation répétée | Retourner « déjà annulée » après contrôle du demandeur, sans autre remboursement ni nouvel événement | |
 | Quiz après annulation cinéma | À réception de seance.annulee, annuler les tentatives non terminées ; conserver les résultats terminés et les coupons déjà émis | |
 | Tarifs | Plein, réduit et enfant ; le spectateur déclare son tarif à l'achat, l'agent vérifie le justificatif à l'entrée ; sans justificatif, pas d'entrée | |
-| Accès au quiz | Billet validé à l'entrée, puis scan du QR code rotatif pendant le générique | |
-| Déroulement du quiz | 2 heures pour le démarrer, 10 questions tirées parmi environ 40, 15 secondes par question, chronomètre côté serveur | |
+| Accès au quiz | Titulaire authentifié correspondant au client_id de la tentative ; code signé encore valide de la même séance, scanné entre le début du générique inclus et la fin de séance exclue | |
+| Déroulement du quiz | 2 heures pour démarrer ; ensuite 10 questions de 15 secondes, au plus 150 secondes après le démarrage ; les absences sont fausses et le serveur avance même sans réponse | |
+| Choix du quiz | Identifiants de choix stables ; questions et ordre des choix figés au démarrage ; correction privée côté serveur ; aucune remise à zéro lors d'une reconnexion | |
 | Récompense du quiz | Aucun coupon en dessous de 8/10 ; tirage à 50 % pour 8 ou 9/10 ; coupon garanti à 10/10 ; un popcorn moyen à retirer au comptoir | |
 | Coupons | Valables 30 jours, usage unique, rattachés au client, protégés par un jeton secret dans le QR code | |
 | Coupon sans billet du jour | Autorisé pour l'instant (question ouverte) | |

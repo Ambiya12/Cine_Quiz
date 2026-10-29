@@ -31,13 +31,18 @@
       "donnees": {
         "film_id": "film_dune2",
         "texte": "Quelle est la couleur des yeux des Fremen ?",
-        "choix": ["Vert", "Bleu", "Rouge", "Jaune"],
-        "reponse": 1
+        "choix": [
+          { "choix_id": "a", "texte": "Vert" },
+          { "choix_id": "b", "texte": "Bleu" },
+          { "choix_id": "c", "texte": "Rouge" },
+          { "choix_id": "d", "texte": "Jaune" }
+        ],
+        "bonne_reponse_id": "b"
       },
       "verifications": [
         "le film existe",
-        "la question a exactement 4 choix",
-        "l'indice de la bonne réponse est compris entre 0 et 3"
+        "la question a exactement 4 choix avec des choix_id distincts dans cette question",
+        "bonne_reponse_id correspond à l'un de ces choix_id"
       ],
       "effet": "ajoute la question à la banque de questions du film",
       "evenement": "film.modifie"

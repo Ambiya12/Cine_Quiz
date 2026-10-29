@@ -9,7 +9,8 @@
     "id_objet": "bil_981_2",
     "modifications": [
       { "donnee": "statut", "nouvelle_valeur": "ouverte" },
-      { "donnee": "ferme_le", "nouvelle_valeur": "2026-10-08T00:41:00Z" }
+      { "donnee": "ouverte_le", "nouvelle_valeur": "2026-10-07T22:41:00Z" },
+      { "donnee": "demarrage_avant", "nouvelle_valeur": "2026-10-08T00:41:00Z" }
     ],
     "contexte": {
       "client_id": "client_12",
@@ -19,7 +20,7 @@
   "reactions": [
     {
       "service": "application_spectateur",
-      "effet": "affiche la notification « Ton quiz sur Dune est prêt, tu as jusqu'à 00 h 41 »"
+      "effet": "affiche la notification « Ton quiz sur Dune est prêt, démarre avant 00 h 41 ; tu auras ensuite jusqu'à 2 min 30 pour finir »"
     }
   ]
 }

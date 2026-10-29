@@ -119,10 +119,23 @@ vérifications :
 ### Quiz et coupons
 
 La validation d'un billet crée une tentative en attente de présence.
-Le scan du QR code pendant le générique ouvre ensuite
-une fenêtre de deux heures pour démarrer le quiz. Dix questions sont tirées au
-hasard ; chacune dispose de quinze secondes, mesurées côté serveur. Une réponse
-absente ou hors délai compte comme fausse. Les bonnes réponses restent côté serveur.
+Le scan du QR code pendant le générique ouvre une fenêtre de deux heures pour
+démarrer le quiz. Dix questions sont tirées au hasard ; chacune dispose de quinze
+secondes, mesurées côté serveur. Les règles sont les suivantes :
+
+| Sujet | Règle |
+|---|---|
+| Titulaire | L'utilisateur authentifié doit correspondre au `client_id` de la tentative pour confirmer sa présence, démarrer et répondre |
+| Code du générique | Signature valide, créneau actuel ou précédent, même séance que la tentative, scan entre `debut_generique` inclus et `fin_seance` exclue ; aucune annulation connue |
+| Délais | `demarrage_avant = ouverte_le + 2 heures` ; démarrage strictement avant cette limite ; `finir_avant = demarree_le + 150 secondes`, indépendamment de la première limite |
+| Absence de réponse | Après quinze secondes, le serveur compte la question fausse et avance, même sans requête du téléphone ; à la limite de fin, les réponses encore absentes sont fausses |
+| Choix mélangés | Chaque réponse soumet un `choix_id` stable ; les questions, leur correction et l'ordre des choix sont figés côté serveur au démarrage et restent inchangés après reconnexion |
+
+Les dates proviennent du serveur. Un nouveau scan, un nouvel appel de démarrage
+ou une reconnexion ne renouvelle aucun délai. Un quiz commencé à 00:40:59, avec
+une limite de démarrage à 00:41, peut finir jusqu'à 00:43:29. Les bonnes réponses
+ne sont jamais transmises au téléphone. Celui-ci reçoit uniquement la question
+courante et ses choix publics.
 
 Un score inférieur à 8/10 ne donne pas de coupon de quiz. Pour 8 ou 9/10, la
 proposition prévoit un tirage à 50 % ; à 10/10, le coupon est garanti. Les coupons
@@ -231,8 +244,9 @@ constitue pas à lui seul un schéma physique ou une transaction entre bases.
 
 **Film** regroupe les informations de présentation, le casting et la banque de
 questions. Les questions sont incluses parce qu'elles sont éditées pour ce film.
-Un retrait de l'affiche conserve l'historique. L'indice `reponse` d'une question
-est compris entre 0 et 3.
+Un retrait de l'affiche conserve l'historique. Chaque choix possède un `choix_id`
+unique dans sa question ; `bonne_reponse_id` désigne le bon choix côté serveur.
+Mélanger l'affichage ne change pas ces identifiants.
 
 **Salle** porte le plan, la capacité et les places PMR. **Séance** référence un
 film et une salle, avec ses horaires, sa version, ses tarifs et son statut.
@@ -287,13 +301,15 @@ champ supplémentaire. Par exemple, après remboursement d'un achat de 20,50 €
 ### Quiz et coupons : Tentative et Coupon
 
 **Tentative** est identifiée par le billet validé. Elle conserve les horaires
-d'accès, les questions tirées, la progression et le score. **Coupon**
+d'accès, les questions tirées, leur copie dans `questions_figees` avec les choix
+dans l'ordre affiché et leur correction privée, la progression et le score. **Coupon**
 possède son propre identifiant, sa date limite et son état d'utilisation :
 son cycle de vie se poursuit après la fin du quiz.
 
 Le dépôt prévoit des hashes Redis pour les tentatives et les coupons.
-L'expiration d'une tentative et la conservation des preuves d'utilisation des
-coupons doivent être traitées séparément : toutes les données du service ne sont
+L'expiration ne supprime jamais un quiz en cours : son nettoyage suit le traitement
+de sa fin ou de son annulation. Le nettoyage d'une tentative et la conservation
+des preuves d'utilisation des coupons doivent être traités séparément : toutes les données du service ne sont
 pas temporaires. La politique de persistance reste à préciser.
 
 ::: {.callout-note collapse="true"}
@@ -534,9 +550,9 @@ soit d'abord définie et transmise.
 
 Le scénario suivant relie les exemples existants de `client_12`, `film_dune2`,
 `seance_42` et `res_981`. Les dates et heures sont celles des fichiers, en UTC
-comme l'indique le suffixe `Z`. La banque du film et les réponses de la tentative
-sont abrégées dans les JSON : ils illustrent les modèles et ne constituent pas
-un jeu de données permettant d'exécuter dix questions.
+comme l'indique le suffixe `Z`. La banque du film, les questions figées et les
+réponses de la tentative sont abrégées dans les JSON : ils illustrent les modèles
+et ne constituent pas un jeu de données permettant d'exécuter dix questions.
 
 | Étape | Demande ou fait | Service et données modifiées | Événement et conséquence |
 |---|---|---|---|
@@ -546,8 +562,8 @@ un jeu de données permettant d'exécuter dix questions.
 | 4. Achat | `ConfirmerReservation` le 5 octobre | Réservation `res_981`, deux billets à 11,50 € et 9 €, total 20,50 € | `reservation.confirmee` décrit l'achat ; aucun consommateur n'est défini dans ce périmètre |
 | 5. Transfert facultatif | `TransfererBillet` pour le premier billet | `client_40` devient titulaire de `bil_981_1` ; l'acheteur reste `client_12` | Aucun événement de transfert prévu |
 | 6. Entrée | `ValiderBillet` à 19:53 pour le second billet, avec justificatif | Réservations valide `bil_981_2` de `client_12` | `billet.valide` crée la tentative en attente et prépare les notifications du quiz |
-| 7. Générique | `ConfirmerPresence` à 22:41 avec le code de séance | Quiz et coupons ouvre la tentative jusqu'au 8 octobre à 00:41 pour son démarrage | `quiz.ouvert` informe l'application du spectateur |
-| 8. Participation | `DemarrerQuiz` à 23:05, puis `RepondreQuestion` | Dix questions tirées ; la tentative termine avec un score de 9/10 dans l'exemple | `quiz.termine` déclenche le tirage d'attribution d'un coupon |
+| 7. Générique | `ConfirmerPresence` à 22:41 avec le code de séance | Quiz et coupons fixe `demarrage_avant` au 8 octobre à 00:41 | `quiz.ouvert` informe l'application du spectateur |
+| 8. Participation | `DemarrerQuiz` à 23:05, puis `RepondreQuestion` avec un `choix_id` | Dix questions figées ; `finir_avant` vaut 23:07:30 ; la tentative termine à 23:07:20 avec un score de 9/10 dans l'exemple | `quiz.termine` déclenche le tirage d'attribution d'un coupon |
 | 9. Coupon de quiz | Tirage favorable pour le score de 9/10, dans cet exemple | Quiz et coupons crée `cpn_55`, un popcorn moyen valable trente jours | `coupon.emis` permet son affichage ; ce gain n'est pas garanti pour tous les scores de 9/10 |
 | 10. Comptoir | `UtiliserCoupon` le 15 octobre pour `cpn_55` | Le coupon de popcorn passe à utilisé, avec sa date | `coupon.utilise` ajoute une remise de popcorn aux consommations du fournisseur |
 
@@ -578,8 +594,8 @@ les documente ; il ne modifie pas les règles ni les événements correspondants
 |---|---|
 | Décisions collectives | Renseigner les validations dans `DECISIONS.md`, dont l'accès au coupon sans billet du jour et le transfert sans événement |
 | Réservation et concurrence | Compléter les contrôles d'état et expliquer la vente unique malgré les blocages temporaires et les écritures dans plusieurs tables |
-| Identité et accès | Préciser les contrôles du titulaire du billet ou du coupon et l'acheminement individuel des notifications et des secrets de coupons |
-| Déroulement du quiz | Définir le générateur du QR code, les délais sans réponse, la reprise, la correspondance des choix mélangés et la fin d'un quiz commencé près de l'échéance |
+| Identité et accès | Réaliser les contrôles du titulaire définis pour le quiz et préciser l'acheminement individuel des notifications et des secrets de coupons |
+| Déroulement du quiz | Définir le générateur du QR code et réaliser les règles de délais serveur, de questions figées et de reprise sans remise à zéro |
 | Mise à jour des copies | Définir les opérations sur les tableaux JSON et la propagation des changements de titre ou d'horaires déjà copiés |
 | Fiabilité des événements | Définir abonnements indépendants, ordre, doublons, accusés de réception, reprise et publication après écriture ; empêcher les tirages et coupons répétés lors d'un rejeu |
 | Projections | Compléter la reconstruction locale de Recherche, le traitement du temps et la reprise des compteurs Fournisseurs |

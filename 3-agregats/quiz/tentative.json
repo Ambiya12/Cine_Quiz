@@ -1,18 +1,23 @@
 {
   "agregat": "Tentative",
   "service": "quiz",
-  "stockage": "un hash Redis tentative:{billet_id}, qui expire automatiquement après la fermeture",
+  "stockage": "un hash Redis tentative:{billet_id} ; une tentative en_cours n'est jamais supprimée par expiration ; son nettoyage intervient après le traitement de sa fin ou de son annulation",
   "regles": [
     "une seule tentative par billet validé",
+    "seul le demandeur authentifié correspondant au client_id de la tentative peut confirmer sa présence, démarrer et répondre",
     "à réception de seance.annulee, les tentatives en_attente_presence, ouverte ou en_cours deviennent annulee et ne peuvent plus reprendre",
     "les tentatives déjà terminee conservent leur résultat ; les coupons déjà émis restent valables selon leur date d'expiration",
     "aucune nouvelle tentative n'est créée pour une séance connue comme annulée",
-    "elle ne s'ouvre qu'avec un scan du QR code pendant le générique",
-    "elle doit être démarrée dans les 2 heures suivant son ouverture",
+    "elle ne s'ouvre qu'avec un QR code signé encore valide de la même séance, entre debut_generique inclus et fin_seance exclue selon l'heure du serveur",
+    "le démarrage est autorisé strictement avant demarrage_avant, égal à ouverte_le plus 2 heures",
+    "une fois démarrée, la tentative peut finir après demarrage_avant ; finir_avant vaut demarree_le plus 150 secondes",
     "10 questions tirées au hasard parmi celles du film",
     "une question à la fois, 15 secondes chacune, chronomètre côté serveur",
-    "une réponse hors délai ou absente est comptée fausse",
-    "la bonne réponse n'est jamais envoyée au téléphone"
+    "une réponse hors délai ou absente est comptée fausse ; le serveur avance sans requête du téléphone et termine au plus tard à finir_avant",
+    "les questions sélectionnées et l'ordre mélangé de leurs choix sont conservés dans questions_figees et restent identiques après reconnexion, même si la banque est modifiée",
+    "une réponse désigne un choix_id stable, jamais sa position à l'écran ; une question reçoit au plus une réponse",
+    "la correction bonne_reponse_id reste côté serveur et n'est jamais envoyée au téléphone ; seules la question courante et ses choix publics sont transmis",
+    "répéter un scan, un démarrage ou une réponse ne renouvelle aucun délai et ne modifie pas une réponse déjà enregistrée"
   ],
   "references": ["billet_id", "client_id", "film_id", "seance_id"],
   "exemple": {
@@ -24,15 +29,28 @@
     "debut_generique": "2026-10-07T22:38:00Z",
     "fin_seance": "2026-10-07T22:46:00Z",
     "ouverte_le": "2026-10-07T22:41:00Z",
-    "ferme_le": "2026-10-08T00:41:00Z",
+    "demarrage_avant": "2026-10-08T00:41:00Z",
     "demarree_le": "2026-10-07T23:05:00Z",
+    "finir_avant": "2026-10-07T23:07:30Z",
     "questions": ["q1", "q7", "q12", "q15", "q18", "q21", "q26", "q30", "q34", "q38"],
+    "questions_figees": {
+      "q1": {
+        "texte": "Quelle est la couleur des yeux des Fremen ?",
+        "choix": [
+          { "choix_id": "c", "texte": "Rouge" },
+          { "choix_id": "a", "texte": "Vert" },
+          { "choix_id": "d", "texte": "Jaune" },
+          { "choix_id": "b", "texte": "Bleu" }
+        ],
+        "bonne_reponse_id": "b"
+      }
+    },
     "question_courante": null,
     "question_envoyee_le": null,
     "reponses": {
-      "q1": { "reponse": 1, "correcte": true },
-      "q7": { "reponse": 2, "correcte": true },
-      "q12": { "reponse": null, "correcte": false }
+      "q1": { "choix_id": "b", "correcte": true },
+      "q7": { "choix_id": "c", "correcte": true },
+      "q12": { "choix_id": null, "correcte": false }
     },
     "score": 9
   }

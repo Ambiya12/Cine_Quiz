@@ -10,13 +10,17 @@
         "code_generique": "seance_42|88123|9f2c..."
       },
       "verifications": [
+        "le demandeur authentifié correspond au client_id enregistré dans la tentative",
         "la signature du code est valide",
         "le créneau du code est le créneau actuel ou le précédent",
         "une tentative existe pour ce billet et cette séance",
+        "la séance indiquée dans le code signé est celle de la tentative",
+        "l'heure du serveur est comprise entre debut_generique inclus et fin_seance exclue",
         "la séance n'est pas connue comme annulée",
         "la tentative est en attente de présence"
       ],
-      "effet": "la tentative passe au statut ouverte, pour 2 heures",
+      "effet": "la tentative passe au statut ouverte ; ouverte_le est fixé et demarrage_avant vaut ouverte_le plus 2 heures ; cette échéance limite uniquement le démarrage",
+      "repetition": "un nouveau scan par le même titulaire restitue l'ouverture existante sans prolonger demarrage_avant ni rouvrir une tentative annulée ou terminée",
       "evenement": "quiz.ouvert"
     },
     {
@@ -24,11 +28,14 @@
       "acteur": "spectateur",
       "donnees": { "billet_id": "bil_981_2" },
       "verifications": [
+        "le demandeur authentifié correspond au client_id enregistré dans la tentative",
         "la tentative est ouverte",
         "la séance n'est pas connue comme annulée",
-        "la fenêtre de 2 heures n'est pas dépassée"
+        "l'heure du serveur est strictement avant demarrage_avant",
+        "le réplica contient au moins 10 questions pour ce film"
       ],
-      "effet": "tire 10 questions au hasard parmi celles du film, mélange les choix ; la tentative passe au statut en_cours",
+      "effet": "tire 10 questions et mélange leurs choix en conservant les choix_id ; fige leur contenu, leur ordre et leur correction dans questions_figees côté serveur ; la tentative passe au statut en_cours ; demarree_le est fixé et finir_avant vaut demarree_le plus 150 secondes ; le serveur démarre les 15 secondes de la première question",
+      "repetition": "une reconnexion ou un nouvel appel du même titulaire restitue la progression existante sans nouveau tirage, nouveau mélange ni remise des délais à zéro ; une tentative annulée ou terminée ne redémarre pas",
       "evenement": null
     },
     {
@@ -37,14 +44,19 @@
       "donnees": {
         "billet_id": "bil_981_2",
         "question_id": "q7",
-        "reponse": 2
+        "choix_id": "c"
       },
       "verifications": [
+        "le demandeur authentifié correspond au client_id enregistré dans la tentative",
         "la tentative est en cours",
         "la question est celle actuellement posée",
-        "les 15 secondes ne sont pas écoulées ; sinon la réponse est comptée fausse"
+        "le choix_id appartient aux choix figés de cette question",
+        "aucune réponse n'a déjà été enregistrée pour cette question",
+        "l'heure du serveur est strictement avant question_envoyee_le plus 15 secondes et avant finir_avant ; sinon la réponse absente est comptée fausse"
       ],
-      "effet": "enregistre la réponse et envoie la question suivante ; après la 10e, la tentative passe au statut terminee",
+      "effet": "enregistre le choix_id, le compare à bonne_reponse_id conservé côté serveur et avance ; sans réponse, le serveur compte la question fausse après 15 secondes et avance automatiquement ; après la 10e ou à finir_avant, les réponses absentes sont fausses, le score est fixé et la tentative passe au statut terminee",
+      "repetition": "la même réponse du même titulaire pour la même question restitue le résultat enregistré sans avancer une seconde fois ; une autre réponse ne remplace pas la première",
+      "publication": "quiz.termine est publié uniquement lors du premier passage à terminee, y compris si la fin est déclenchée par le délai serveur",
       "evenement": "quiz.termine"
     },
     {

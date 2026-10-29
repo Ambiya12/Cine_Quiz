@@ -2,7 +2,7 @@
   "evenement": {
     "id_evenement": "evt_0700",
     "type": "quiz.termine",
-    "date": "2026-10-07T23:08:00Z",
+    "date": "2026-10-07T23:07:20Z",
     "emetteur": "quiz",
     "recepteurs": ["quiz"],
     "type_objet": "Tentative",
