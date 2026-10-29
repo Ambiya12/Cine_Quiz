@@ -24,6 +24,8 @@ des profils reste hors périmètre.
 | Choix du quiz | Identifiants de choix stables ; questions et ordre des choix figés au démarrage ; correction privée côté serveur ; aucune remise à zéro lors d'une reconnexion | |
 | Récompense du quiz | Aucun coupon de 0 à 7/10 ; un tirage à 50 % pour 8 ou 9/10 ; coupon garanti à 10/10 ; un popcorn moyen ou une boisson au choix à une visite ultérieure | |
 | Attribution unique | Une décision enregistrée par tentative, même perdante ; un rejeu ne répète ni le tirage ni la création du coupon ; au plus un coupon par tentative | |
+| Mises à jour par événement | Deux opérations explicites : remplacer un champ par sa valeur complète, ou ajouter un élément à une liste ; aucun chemin à l'intérieur des tableaux | |
+| Événements reçus deux fois | Chaque service mémorise ses id_evenement traités ; les modifications et cet enregistrement sont validés ensemble ; une répétition ne produit aucun effet métier supplémentaire | |
 | Coupons | Valables 30 jours, usage unique, rattachés au client et à leur tentative d'origine ; produit choisi au comptoir à une visite ultérieure ; protégés par un jeton secret dans le QR code | |
 | Coupon sans billet du jour | Autorisé pour l'instant (question ouverte) | |
 | Transfert de billet | Le titulaire change dans Réservations ; aucun événement de transfert n'est défini dans le périmètre actuel | |

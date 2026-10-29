@@ -8,7 +8,32 @@
     "type_objet": "Reservation",
     "id_objet": "res_981",
     "modifications": [
-      { "donnee": "billets.bil_981_2.statut", "nouvelle_valeur": "validee" }
+      {
+        "donnee": "billets",
+        "operation": "remplacer",
+        "nouvelle_valeur": [
+          {
+            "billet_id": "bil_981_1",
+            "place": "F7",
+            "tarif": "plein",
+            "prix": 11.50,
+            "titulaire_id": "client_40",
+            "statut": "validee",
+            "justificatif_verifie": false,
+            "valide_le": "2026-10-07T19:52:00Z"
+          },
+          {
+            "billet_id": "bil_981_2",
+            "place": "F8",
+            "tarif": "reduit",
+            "prix": 9.00,
+            "titulaire_id": "client_12",
+            "statut": "validee",
+            "justificatif_verifie": true,
+            "valide_le": "2026-10-07T19:53:00Z"
+          }
+        ]
+      }
     ],
     "contexte": {
       "billet_id": "bil_981_2",

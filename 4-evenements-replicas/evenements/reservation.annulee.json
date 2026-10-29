@@ -8,8 +8,23 @@
     "type_objet": "Reservation",
     "id_objet": "res_1002",
     "modifications": [
-      { "donnee": "statut", "nouvelle_valeur": "annulee" },
-      { "donnee": "billets.statut", "nouvelle_valeur": "annulee" },
+      { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "annulee" },
+      {
+        "donnee": "billets",
+        "operation": "remplacer",
+        "nouvelle_valeur": [
+          {
+            "billet_id": "bil_1002_1",
+            "place": "F9",
+            "tarif": "plein",
+            "prix": 11.50,
+            "titulaire_id": "client_77",
+            "statut": "annulee",
+            "justificatif_verifie": false,
+            "valide_le": null
+          }
+        ]
+      },
       {
         "donnee": "paiements",
         "operation": "ajouter",

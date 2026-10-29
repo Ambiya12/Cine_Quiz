@@ -8,9 +8,9 @@
     "type_objet": "Tentative",
     "id_objet": "bil_981_2",
     "modifications": [
-      { "donnee": "statut", "nouvelle_valeur": "ouverte" },
-      { "donnee": "ouverte_le", "nouvelle_valeur": "2026-10-07T22:41:00Z" },
-      { "donnee": "demarrage_avant", "nouvelle_valeur": "2026-10-08T00:41:00Z" }
+      { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "ouverte" },
+      { "donnee": "ouverte_le", "operation": "remplacer", "nouvelle_valeur": "2026-10-07T22:41:00Z" },
+      { "donnee": "demarrage_avant", "operation": "remplacer", "nouvelle_valeur": "2026-10-08T00:41:00Z" }
     ],
     "contexte": {
       "client_id": "client_12",

@@ -8,11 +8,11 @@
     "type_objet": "Seance",
     "id_objet": "seance_42",
     "modifications": [
-      { "donnee": "tarifs.reduit", "nouvelle_valeur": 8.50 }
+      { "donnee": "tarifs", "operation": "remplacer", "nouvelle_valeur": { "plein": 11.50, "reduit": 8.50, "enfant": 7.00 } }
     ]
   },
   "reactions": [
-    { "service": "reservations", "effet": "met à jour le tarif dans son réplica ; les billets déjà vendus gardent leur prix" },
-    { "service": "recherche", "effet": "met à jour le tarif le plus bas affiché dans les résultats" }
+    { "service": "reservations", "effet": "remplace la grille complète des tarifs dans son réplica ; les billets déjà vendus gardent leur prix" },
+    { "service": "recherche", "effet": "recalcule le tarif le plus bas de la séance à partir de la grille complète reçue, puis le minimum global affiché pour le film" }
   ]
 }

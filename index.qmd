@@ -351,9 +351,26 @@ ne sont pas temporaires. La politique de persistance reste à préciser.
 
 Chaque événement identifie le fait, sa date, le service émetteur, les récepteurs
 et l'agrégat concerné. `donnees` porte les valeurs utiles à une création ;
-`modifications` indique les données modifiées et leurs nouvelles valeurs.
+`modifications` indique le champ direct `donnee`, son `operation` et sa
+`nouvelle_valeur`.
 `contexte` ajoute les informations dont les récepteurs ont besoin pour réagir
 sans rappeler l'émetteur.
+
+| Opération | Sens | Exemple |
+|---|---|---|
+| `remplacer` | Remplacer le champ par sa valeur complète après modification | Toute la banque `questions`, toute la grille `tarifs` ou toute la liste `billets` publiée |
+| `ajouter` | Ajouter un élément à une liste sans effacer les entrées existantes | Un remboursement ajouté à `paiements` |
+
+Chaque opération est explicite. Les listes contiennent toutes leurs entrées,
+avec les champs utiles aux récepteurs ; les secrets QR des billets restent dans
+Réservations. Les événements ne demandent pas de rechercher un élément via un
+chemin à l'intérieur d'un tableau.
+
+Chaque récepteur mémorise ses propres `id_evenement` traités. Recevoir deux fois
+le même événement ne crée pas une autre tentative, un autre remboursement ou
+un autre incrément de compteur. Les modifications locales et l'enregistrement
+de l'identifiant sont validés ensemble ; si le traitement échoue, aucun des deux
+n'est conservé. Une republication technique garde le même identifiant.
 
 Les fichiers distinguent le message publié, dans `evenement`, des réactions
 attendues, dans `reactions`. Ces réactions documentent le comportement des
@@ -459,8 +476,9 @@ instances de secours du service propriétaire.
 | `QuestionsFilmReplica` | Quiz et coupons | `film.cree` | `film.modifie` | Titre du film, questions et réponses pour le quiz |
 
 La paire `film.cree` / `film.modifie` illustre la création puis la mise à jour
-d'un réplica : le premier message crée un film sans questions ; le second ajoute
-la question `q1`. Recherche ignore cette modification de question,
+d'un réplica : le premier message crée un film sans questions ; après l'ajout de
+`q1` dans Catalogue, le second remplace la banque locale par toute la liste reçue,
+ici composée de cette seule question. Recherche ignore cette modification,
 car son modèle ne la conserve pas. De même, une modification du tarif réduit
 met à jour `SeanceReplica` sans modifier le prix des billets déjà achetés.
 
@@ -514,11 +532,11 @@ version à une même séance du document.
 ```
 :::
 
-La reconstruction locale reste à détailler : les messages de modification ou
-d'annulation identifient la séance, et une modification de tarif ne fournit
-qu'une valeur partielle. Le service doit pouvoir retrouver le film et recalculer
-les minimums avec ses données locales ou l'historique reçu. Le retrait des séances
-passées nécessite également une règle liée au temps.
+Une modification de tarif transmet la grille complète : Recherche peut donc
+recalculer le minimum de la séance sans deviner les autres tarifs. La correspondance
+locale entre séance et film et le recalcul du minimum global du film restent à
+détailler, notamment après annulation. Le retrait des séances passées nécessite
+également une règle liée au temps.
 
 ### Consommations des fournisseurs
 
@@ -548,11 +566,13 @@ sans modifier le service qui émet les coupons.
 ```
 :::
 
-L'identifiant d'événement est proposé comme clé pour reconnaître les doublons.
-L'exemple sépare toutefois l'enregistrement du message et l'incrément du compteur :
-la reprise après une interruption entre ces opérations reste à définir.
-Le fichier de projection annonce une conservation de l'événement tel quel,
-tandis que le script en conserve un sous-ensemble aplati ; ce contrat est à harmoniser.
+L'identifiant d'événement sert de clé pour reconnaître les doublons. L'exemple
+enregistre les données de consommation à plat et incrémente le compteur dans une
+seule transaction : les deux écritures sont conservées ensemble ou annulées
+ensemble. Une réception déjà enregistrée ne modifie pas les totaux.
+Cet exemple `mongosh` nécessite un replica set MongoDB pour les
+[transactions](https://www.mongodb.com/docs/manual/core/transactions/) ; sa
+configuration sera réalisée lors de l'implémentation.
 
 ### Évolution vers de nouvelles lectures
 
@@ -615,9 +635,9 @@ les documente ; il ne modifie pas les règles ni les événements correspondants
 | Réservation et concurrence | Compléter les contrôles d'état et expliquer la vente unique malgré les blocages temporaires et les écritures dans plusieurs tables |
 | Identité et accès | Réaliser les contrôles du titulaire définis pour le quiz et préciser l'acheminement individuel des notifications et des secrets de coupons |
 | Déroulement du quiz | Définir le générateur du QR code et réaliser les règles de délais serveur, de questions figées et de reprise sans remise à zéro |
-| Mise à jour des copies | Définir les opérations sur les tableaux JSON et la propagation des changements de titre ou d'horaires déjà copiés |
-| Fiabilité des événements | Définir abonnements indépendants, ordre, doublons, accusés de réception, reprise et publication après écriture ; empêcher les tirages et coupons répétés lors d'un rejeu |
-| Projections | Compléter la reconstruction locale de Recherche, le traitement du temps et la reprise des compteurs Fournisseurs |
+| Mise à jour des copies | Préciser la propagation des changements de titre ou d'horaires déjà copiés |
+| Fiabilité des événements | Choisir les abonnements, l'ordre, les accusés de réception, la reprise et la publication après écriture ; réaliser la déduplication atomique définie dans le contrat commun |
+| Projections | Compléter la correspondance séance-film dans Recherche, le traitement du temps et la configuration des transactions Fournisseurs |
 | Stockage et exemples | Préciser clés, index, persistance et rétention ; compléter les données abrégées si une démonstration exécutable est attendue |
 
 La relecture collective peut suivre trois parcours : l'achat jusqu'au coupon,

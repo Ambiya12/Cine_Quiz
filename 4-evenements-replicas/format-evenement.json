@@ -9,14 +9,22 @@
     "type_objet": "l'agrégat concerné",
     "id_objet": "l'identifiant de cet agrégat",
     "donnees": "pour une création : les valeurs de l'agrégat utiles aux récepteurs",
-    "modifications": "pour une mise à jour : la liste des données modifiées et de leur nouvelle valeur ; operation: ajouter ajoute un élément à une liste sans remplacer son contenu",
+    "modifications": "pour une mise à jour : une liste d'objets avec donnee (nom direct du champ), operation et nouvelle_valeur ; chaque opération est explicite",
     "contexte": "les informations complémentaires dont les récepteurs ont besoin pour réagir sans rappeler l'émetteur"
+  },
+  "operations": {
+    "remplacer": "remplace le champ par sa valeur complète après modification, y compris toutes les entrées d'une liste ou toutes les propriétés d'un objet publié",
+    "ajouter": "ajoute un seul élément à la fin d'une liste, sans supprimer ni remplacer les éléments existants"
   },
   "regles": [
     "un événement décrit un fait métier déjà accompli, jamais un ordre",
     "seul le service propriétaire de l'agrégat peut émettre ses événements",
     "chaque récepteur prend ce dont il a besoin et ignore le reste",
-    "les événements sont conservés pour pouvoir être rejoués"
+    "les événements sont conservés pour pouvoir être rejoués",
+    "donnee désigne un champ direct : pas de chemin comme questions.q1 ou billets.statut ; les listes sont publiées en entier avec les champs utiles aux récepteurs, sans les secrets des billets",
+    "chaque récepteur conserve ses propres id_evenement traités ; une nouvelle réception du même identifiant n'ajoute aucun effet métier",
+    "l'enregistrement de id_evenement et les modifications locales sont validés ensemble dans une seule opération atomique ; un traitement échoué ne marque pas l'événement comme traité",
+    "une republication du même événement conserve son id_evenement"
   ],
   "transport": "Redis Streams, un flux par service émetteur"
 }

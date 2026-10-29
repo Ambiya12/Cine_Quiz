@@ -8,10 +8,10 @@
     "type_objet": "Coupon",
     "id_objet": "cpn_55",
     "modifications": [
-      { "donnee": "type", "nouvelle_valeur": "popcorn_moyen" },
-      { "donnee": "fournisseur_id", "nouvelle_valeur": "fourn_popcorn_1" },
-      { "donnee": "utilise", "nouvelle_valeur": true },
-      { "donnee": "utilise_le", "nouvelle_valeur": "2026-10-15T19:40:00Z" }
+      { "donnee": "type", "operation": "remplacer", "nouvelle_valeur": "popcorn_moyen" },
+      { "donnee": "fournisseur_id", "operation": "remplacer", "nouvelle_valeur": "fourn_popcorn_1" },
+      { "donnee": "utilise", "operation": "remplacer", "nouvelle_valeur": true },
+      { "donnee": "utilise_le", "operation": "remplacer", "nouvelle_valeur": "2026-10-15T19:40:00Z" }
     ],
     "contexte": {
       "type": "popcorn_moyen",
@@ -20,6 +20,6 @@
     }
   },
   "reactions": [
-    { "service": "fournisseurs", "effet": "conserve l'événement tel quel, puis ajoute 1 au compteur du produit réellement choisi, ici popcorn_moyen, pour le fournisseur et le jour indiqués" }
+    { "service": "fournisseurs", "effet": "si id_evenement n'a pas déjà été traité, enregistre les données de consommation et ajoute 1 au compteur du produit choisi, ici popcorn_moyen, dans une seule transaction ; une réception répétée ne change pas les totaux" }
   ]
 }

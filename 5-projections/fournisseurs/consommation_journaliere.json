@@ -5,11 +5,11 @@
   "question_metier": "Combien de produits de chaque type ai-je fournis, par jour, pour facturer le cinéma et réapprovisionner ?",
   "evenements_sources": ["coupon.utilise"],
   "transformation": [
-    "conserver chaque événement reçu tel quel dans la collection evenements_recus",
-    "ajouter 1 au compteur du produit, pour ce fournisseur et ce jour, dans la collection consommations"
+    "conserver les données utiles de chaque événement dans evenements_recus : identifiant, type, date, produit, fournisseur et film d'origine",
+    "dans la même transaction, ajouter 1 au compteur du produit pour ce fournisseur et ce jour dans consommations"
   ],
   "regles": [
-    "un même événement n'est compté qu'une seule fois, même s'il est reçu deux fois",
+    "un même événement n'est compté qu'une seule fois, même s'il est reçu deux fois ; l'identifiant enregistré et le compteur sont validés ensemble ou annulés ensemble",
     "aucune donnée sur les clients n'est conservée"
   ],
   "evolution": "les événements conservés peuvent être rejoués pour construire une nouvelle projection, par exemple par heure ou par film d'origine, sans rien changer aux autres services",

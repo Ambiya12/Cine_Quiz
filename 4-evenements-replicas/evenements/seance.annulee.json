@@ -8,7 +8,7 @@
     "type_objet": "Seance",
     "id_objet": "seance_57",
     "modifications": [
-      { "donnee": "statut", "nouvelle_valeur": "annulee" }
+      { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "annulee" }
     ],
     "contexte": { "motif": "panne du projecteur" }
   },

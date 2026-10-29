@@ -8,8 +8,8 @@
     "type_objet": "Tentative",
     "id_objet": "bil_981_2",
     "modifications": [
-      { "donnee": "statut", "nouvelle_valeur": "terminee" },
-      { "donnee": "score", "nouvelle_valeur": 9 }
+      { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "terminee" },
+      { "donnee": "score", "operation": "remplacer", "nouvelle_valeur": 9 }
     ],
     "contexte": {
       "client_id": "client_12",

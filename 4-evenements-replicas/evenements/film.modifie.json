@@ -9,24 +9,28 @@
     "id_objet": "film_dune2",
     "modifications": [
       {
-        "donnee": "questions.q1",
-        "nouvelle_valeur": {
-          "texte": "Quelle est la couleur des yeux des Fremen ?",
-          "choix": [
-            { "choix_id": "a", "texte": "Vert" },
-            { "choix_id": "b", "texte": "Bleu" },
-            { "choix_id": "c", "texte": "Rouge" },
-            { "choix_id": "d", "texte": "Jaune" }
-          ],
-          "bonne_reponse_id": "b"
-        }
+        "donnee": "questions",
+        "operation": "remplacer",
+        "nouvelle_valeur": [
+          {
+            "question_id": "q1",
+            "texte": "Quelle est la couleur des yeux des Fremen ?",
+            "choix": [
+              { "choix_id": "a", "texte": "Vert" },
+              { "choix_id": "b", "texte": "Bleu" },
+              { "choix_id": "c", "texte": "Rouge" },
+              { "choix_id": "d", "texte": "Jaune" }
+            ],
+            "bonne_reponse_id": "b"
+          }
+        ]
       }
     ]
   },
   "reactions": [
     {
       "service": "quiz",
-      "effet": "ajoute la question q1 à son réplica"
+      "effet": "remplace la banque de questions du réplica par la liste complète reçue, ici composée de q1"
     },
     {
       "service": "recherche",
