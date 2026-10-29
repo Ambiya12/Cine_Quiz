@@ -1,14 +1,31 @@
 {
   "agregat": "Reservation",
   "service": "reservations",
-  "stockage": "trois tables Cassandra : reservations (par reservation_id), billets_par_seance (par seance_id et place) et billets_par_client (par titulaire_id)",
+  "stockage": "cinq tables Cassandra pour cet agrégat : reservations, billets_par_id, reservations_par_client, billets_par_client et billets_par_seance ; le réplica seances_replica reste séparé",
+  "lectures": [
+    { "requete": "Charger une réservation", "table": "reservations", "cle": "partition reservation_id" },
+    { "requete": "Retrouver un billet par son identifiant", "table": "billets_par_id", "cle": "partition billet_id", "resultat": "reservation_id ; charger ensuite la réservation pour lire le billet et son état de référence" },
+    { "requete": "Lister les réservations achetées par un client", "table": "reservations_par_client", "cle": "partition acheteur_id ; regroupement reservation_id" },
+    { "requete": "Lister les billets détenus par un client", "table": "billets_par_client", "cle": "partition titulaire_id ; regroupement billet_id" },
+    { "requete": "Vérifier l'attribution d'une place", "table": "billets_par_seance", "cle": "partition seance_id ; regroupement place" },
+    { "requete": "Trouver les réservations actives à annuler pour une séance", "table": "billets_par_seance", "cle": "partition seance_id entière", "resultat": "collecter les reservation_id distincts puis charger ces réservations" }
+  ],
+  "regles_stockage": [
+    "reservations conserve l'état de référence de la réservation, de ses billets et de ses paiements ; les tables par client sont des copies de lecture",
+    "billets_par_id conserve le lien billet_id vers reservation_id, y compris après annulation ; chaque ligne attribuée de billets_par_seance contient reservation_id et billet_id",
+    "billets_par_seance fait autorité pour l'attribution d'une place ; une ligne ne peut appartenir qu'à une réservation active",
+    "la création alimente les cinq tables ; un transfert retire le billet de l'ancien titulaire et l'ajoute au nouveau sans changer l'index de l'acheteur",
+    "une annulation met à jour les copies de lecture et libère une place uniquement si elle appartient encore à cette réservation ; l'historique reste dans reservations",
+    "les lectures par identifiant ou client utilisent les clés définies, sans balayage global ; les copies sont mises à jour par Réservations et leur reprise sera précisée lors de l'implémentation"
+  ],
   "regles": [
     "un billet par place, chacun avec son propre QR code",
     "montant est le prix d'achat initial, égal à la somme des prix des billets ; il reste inchangé après annulation",
     "le montant net payé est calculé en additionnant les paiements positifs et remboursements négatifs : montant avant remboursement, 0 après remboursement total ; aucun champ supplémentaire n'est stocké",
     "le remboursement est ajouté à paiements sans effacer le paiement initial",
     "le prix d'un billet est celui de la séance au moment de l'achat et ne change plus",
-    "une place ne peut être vendue qu'une seule fois",
+    "pour un même seance_id et une même place, une seule réservation active peut détenir la place ; le contrôle de disponibilité et l'attribution sont une seule décision atomique dans billets_par_seance",
+    "le verrou Redis de cinq minutes est temporaire ; il ne remplace pas la garantie d'attribution unique lors de la confirmation",
     "un billet à tarif réduit ou enfant n'est validé que si le justificatif a été vérifié",
     "l'acheteur peut annuler plus de 30 minutes avant la séance si aucun billet n'est validé",
     "le cinéma peut annuler avant la fin prévue de la séance, même après une entrée ; les réservations encore confirmées sont remboursées et les dates valide_le sont conservées",

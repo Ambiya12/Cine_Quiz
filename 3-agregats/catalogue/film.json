@@ -2,6 +2,9 @@
   "agregat": "Film",
   "service": "catalogue",
   "stockage": "un document dans la collection films de MongoDB",
+  "lectures": [
+    { "requete": "Charger un film et sa banque de questions côté serveur", "collection": "films", "cle": "film_id, index unique" }
+  ],
   "regles": [
     "les questions n'existent que pour ce film et s'éditent avec lui",
     "le début du générique est inférieur à la durée du film",

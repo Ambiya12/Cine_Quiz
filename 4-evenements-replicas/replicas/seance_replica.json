@@ -11,6 +11,9 @@
     "transmettre les horaires dans l'événement billet.valide"
   ],
   "stockage": "une table Cassandra seances_replica, par seance_id",
+  "lectures": [
+    { "requete": "Charger localement le plan, les tarifs et les horaires pour une réservation", "table": "seances_replica", "cle": "partition seance_id" }
+  ],
   "exemple": {
     "seance_id": "seance_42",
     "film_id": "film_dune2",

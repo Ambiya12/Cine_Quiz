@@ -14,6 +14,12 @@
   ],
   "evolution": "les événements conservés peuvent être rejoués pour construire une nouvelle projection, par exemple par heure ou par film d'origine, sans rien changer aux autres services",
   "stockage": "un document par fournisseur et par jour dans la collection consommations",
+  "lectures": [
+    { "requete": "Charger le total journalier d'un fournisseur", "collection": "consommations", "cle": "_id = fournisseur_id|date" },
+    { "requete": "Calculer les totaux d'un fournisseur sur un mois", "collection": "consommations", "cle": "index composé fournisseur_id, date ; filtrer la plage puis agréger les produits" },
+    { "requete": "Regrouper les coupons utilisés par film d'origine", "collection": "evenements_recus", "cle": "index fournisseur_id ; regrouper sur film_origine_id" },
+    { "requete": "Vérifier si une réception a déjà été traitée", "collection": "evenements_recus", "cle": "_id = id_evenement" }
+  ],
   "exemple": {
     "_id": "fourn_popcorn_1|2026-10-15",
     "fournisseur_id": "fourn_popcorn_1",

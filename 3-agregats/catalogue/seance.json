@@ -2,6 +2,11 @@
   "agregat": "Seance",
   "service": "catalogue",
   "stockage": "un document dans la collection seances de MongoDB",
+  "lectures": [
+    { "requete": "Charger une séance", "collection": "seances", "cle": "seance_id, index unique" },
+    { "requete": "Lister les séances d'un film dans une plage de dates", "collection": "seances", "cle": "index composé film_id, debut" },
+    { "requete": "Trouver les séances non annulées qui occupent une salle sur un créneau", "collection": "seances", "cle": "index composé salle_id, debut ; filtrer debut < fin_demandee et fin > debut_demande" }
+  ],
   "regles": [
     "l'heure du générique et l'heure de fin sont calculées à partir du film, jamais saisies",
     "deux séances ne peuvent pas occuper la même salle en même temps",

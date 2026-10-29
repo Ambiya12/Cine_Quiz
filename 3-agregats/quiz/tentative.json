@@ -1,7 +1,16 @@
 {
   "agregat": "Tentative",
   "service": "quiz",
-  "stockage": "un hash Redis tentative:{billet_id} ; une tentative en_cours n'est jamais supprimée par expiration ; après sa fin, le détail peut être nettoyé mais recompense_traitee et coupon_id restent conservés pour les rejeux",
+  "stockage": "un hash Redis tentative:{billet_id} et un set tentatives_par_seance:{seance_id} contenant les billet_id ; après la fin, le détail peut être nettoyé mais le résumé de la tentative reste conservé pour les rejeux",
+  "lectures": [
+    { "requete": "Charger une tentative ou sa décision de récompense", "cle": "tentative:{billet_id}", "type": "hash" },
+    { "requete": "Retrouver les tentatives à fermer après annulation d'une séance", "cle": "tentatives_par_seance:{seance_id}", "type": "set de billet_id" }
+  ],
+  "conservation": {
+    "temporaire": "questions figées, réponses et progression : conservées pendant le quiz, nettoyables après traitement de la fin ou de l'annulation ; aucun TTL ne supprime une tentative en_cours",
+    "durable": "le résumé identifié par billet_id conserve client_id, seance_id, statut final, score, recompense_traitee et coupon_id, même après nettoyage du détail ; le résultat reste consultable et un rejeu ne redonne pas de récompense"
+  },
+  "persistance": "Redis Quiz avec AOF sur stockage disque conservé et sans éviction automatique ; les tentatives actives sont restaurées après redémarrage avec leurs dates initiales ; la configuration sera réalisée lors de l'implémentation",
   "regles": [
     "une seule tentative par billet validé",
     "seul le demandeur authentifié correspondant au client_id de la tentative peut confirmer sa présence, démarrer et répondre",

@@ -170,7 +170,7 @@ selon leur propre date d'expiration.
 |---|---|---|
 | Catalogue | Films, questions, salles et séances | MongoDB : les documents regroupent les listes et objets imbriqués d'un film ou d'une salle |
 | Réservations | Réservations, billets et paiements simulés | Cassandra : les accès sont organisés par réservation, séance/place et titulaire ; Redis porte les blocages temporaires |
-| Quiz et coupons | Tentatives et coupons | Redis : les clés identifient les tentatives et les coupons ; les expirations conviennent aux fenêtres temporaires, avec une politique de persistance à préciser pour les données durables |
+| Quiz et coupons | Tentatives et coupons | Redis : accès directs par clé et index par client ou séance ; détail temporaire, résumés et coupons durables avec AOF sur disque conservé |
 | Recherche | Index de films et de séances | Elasticsearch : un modèle de lecture dédié porte la recherche textuelle, la tolérance aux fautes et les filtres |
 | Fournisseurs | Consommations regroupées et événements reçus | MongoDB : un document par fournisseur et par jour regroupe les compteurs, consultés par agrégation |
 
@@ -207,6 +207,95 @@ flowchart LR
 Les flèches regroupent les échanges détaillés dans la matrice des événements.
 Redis Streams est le transport proposé dans le dépôt, avec un flux par service
 émetteur. Le schéma ne représente pas des services déjà déployés.
+
+## Lectures principales et clés
+
+Chaque lecture possède un accès identifié dans les modèles JSON. Les clés et
+index ci-dessous sont prévus pour l'implémentation ; ils ne sont pas encore créés
+dans des bases exécutables.
+
+### Catalogue — MongoDB
+
+| Lecture | Collection | Clé ou index |
+|---|---|---|
+| Charger un film et sa banque de questions côté serveur | `films` | `film_id`, index unique |
+| Charger une salle et son plan | `salles` | `salle_id`, index unique |
+| Charger une séance | `seances` | `seance_id`, index unique |
+| Lister les séances d'un film entre deux dates | `seances` | Index composé `(film_id, debut)` |
+| Rechercher les séances qui occupent une salle sur un créneau | `seances` | Index `(salle_id, debut)` ; filtrer `debut < fin_demandee` et `fin > debut_demande`, en excluant les séances annulées |
+
+Les réponses publiques sur les films excluent la correction des questions.
+L'index de salle aide la recherche de conflits ; le contrôle des créations
+concurrentes reste à réaliser.
+
+### Réservations — Cassandra
+
+Les tables suivent les lectures, conformément à la
+[modélisation par requêtes de Cassandra](https://cassandra.apache.org/doc/latest/cassandra/developing/data-modeling/intro.html).
+Cinq tables portent l'agrégat Réservation ; `seances_replica` conserve séparément
+les données reçues du Catalogue.
+
+| Lecture | Table | Clé |
+|---|---|---|
+| Charger une réservation | `reservations` | Partition `reservation_id` |
+| Retrouver un billet | `billets_par_id` | Partition `billet_id` ; obtenir `reservation_id`, puis lire le billet dans la réservation |
+| Lister les réservations achetées par un client | `reservations_par_client` | Partition `acheteur_id`, regroupement `reservation_id` |
+| Lister les billets détenus par un client | `billets_par_client` | Partition `titulaire_id`, regroupement `billet_id` |
+| Vérifier une place | `billets_par_seance` | Partition `seance_id`, regroupement `place` |
+| Trouver les réservations actives d'une séance à annuler | `billets_par_seance` | Lire cette partition `seance_id`, collecter les `reservation_id` distincts, puis charger les réservations |
+| Charger le plan, les tarifs et les horaires locaux | `seances_replica` | Partition `seance_id` |
+
+Les lignes de place attribuée contiennent `reservation_id` et `billet_id`.
+Un transfert met à jour l'index de l'ancien et du nouveau titulaire sans déplacer
+la réservation de l'acheteur. La table `reservations` conserve l'état de référence
+des billets et paiements ; les vues par client servent à la lecture. Toute action
+sur un billet vérifie son état de référence. Ces accès évitent un balayage global
+des réservations ou billets.
+
+### Quiz et coupons — Redis
+
+| Lecture | Clé | Contenu |
+|---|---|---|
+| Charger une tentative, son résultat ou sa décision de récompense | `tentative:{billet_id}` | Hash de la tentative et de son résumé |
+| Retrouver les tentatives après annulation d'une séance | `tentatives_par_seance:{seance_id}` | Set des `billet_id`, puis lecture des tentatives |
+| Charger un coupon | `coupon:{coupon_id}` | Hash du coupon |
+| Lister les coupons du client authentifié | `coupons_par_client:{client_id}` | Set des `coupon_id`, puis lecture des coupons |
+| Charger le film et les questions du réplica | `film:{film_id}`, `questions:{film_id}` | Hash du titre ; hash des questions par `question_id`, sérialisées en JSON |
+
+Les index par séance et client sont mis à jour à la création des tentatives et
+coupons. Ils permettent les lectures ciblées sans recherche de toutes les clés.
+
+### Recherche — Elasticsearch
+
+| Lecture | Index | Accès |
+|---|---|---|
+| Charger le document d'un film | `films` | `_id = film_id` |
+| Rechercher un titre avec genre, date et version | `films` | Champs `titre`, `genres` et filtres `nested` de `seances` |
+| Retrouver le film d'une séance modifiée ou annulée | `films` | Requête `nested` sur `seances.seance_id` |
+
+### Fournisseurs — MongoDB
+
+| Lecture | Collection | Clé ou index |
+|---|---|---|
+| Charger le total d'un fournisseur pour un jour | `consommations` | `_id = fournisseur_id\|date` |
+| Totaliser les produits sur un mois | `consommations` | Index composé `(fournisseur_id, date)` puis agrégation |
+| Regrouper les coupons utilisés par film | `evenements_recus` | Index `fournisseur_id`, regroupement sur `film_origine_id` |
+| Vérifier une réception déjà traitée | `evenements_recus` | `_id = id_evenement` |
+
+### Conservation et redémarrage de Redis
+
+| Données | Conservation |
+|---|---|
+| Questions figées, réponses et progression | Détail temporaire ; conservé tant que le quiz est actif, nettoyable après traitement de sa fin ou annulation |
+| Résumé de tentative et attribution | Durable : identités, état final, score, `recompense_traitee` et `coupon_id` restent après nettoyage du détail |
+| Coupons et index client | Durables ; `expire_le` interdit la remise après échéance sans supprimer la preuve ; aucun TTL sur ces clés |
+
+Temporaire décrit la durée de conservation, pas une autorisation de perdre une
+tentative en cours lors d'un redémarrage. Redis Quiz doit utiliser la
+[persistance AOF](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/)
+sur un stockage disque conservé, sans éviction automatique. La reprise garde les
+dates initiales des quiz et les preuves d'utilisation des coupons. Cette
+configuration sera créée et vérifiée lors de l'implémentation.
 
 ## Les commandes
 
@@ -295,10 +384,19 @@ de contrôle reste à définir.
 L'acheteur est distinct du titulaire : après un transfert, il reste l'acheteur de
 la réservation, tandis que le destinataire devient titulaire du billet concerné.
 
-Le stockage proposé prévoit trois tables Cassandra pour les lectures par
-réservation, par séance/place et par titulaire. Il s'agit de plusieurs
-représentations des données d'un même service ; la synchronisation de ces tables
-et le contrôle d'une vente unique restent à préciser.
+Le stockage proposé prévoit cinq tables Cassandra, détaillées dans les lectures
+principales. Elles couvrent l'accès par réservation, billet, acheteur, titulaire
+et séance/place. Le lien `billets_par_id` permet de retrouver la réservation
+d'origine ; ses données restent conservées après annulation.
+
+Pour un même `(seance_id, place)`, une seule réservation active peut détenir la
+place. `billets_par_seance` fait autorité pour cette attribution. Le contrôle de
+disponibilité et l'attribution sont une seule décision atomique ; le verrou Redis
+de cinq minutes reste une aide temporaire. La confirmation ne réussit que si
+toutes les places sont attribuées à la réservation ; un conflit ne laisse pas
+d'attribution partielle. La libération d'une place vérifie qu'elle appartient
+encore à la réservation annulée. Le mécanisme de concurrence et la mise à jour
+des copies de lecture seront choisis lors du codage.
 
 `montant` désigne toujours le prix d'achat initial. Les paiements et remboursements
 sont conservés dans `paiements` ; leur somme donne le montant net payé, sans
@@ -324,12 +422,14 @@ son cycle de vie se poursuit après la fin du quiz.
 sont nuls. Lors de la remise, le choix du client fixe ces deux valeurs selon la
 configuration des produits du cinéma. Le fournisseur est déterminé côté serveur.
 
-Le dépôt prévoit des hashes Redis pour les tentatives et les coupons.
+Le dépôt prévoit des hashes Redis pour les tentatives et les coupons, ainsi que
+des sets pour les lectures par séance et par client.
 L'expiration ne supprime jamais un quiz en cours : son nettoyage suit le traitement
-de sa fin ou de son annulation. Son résumé `recompense_traitee` et `coupon_id`
-reste conservé pour les rejeux, même après nettoyage du détail. Les preuves
-d'utilisation des coupons sont aussi conservées : toutes les données du service
-ne sont pas temporaires. La politique de persistance reste à préciser.
+de sa fin ou de son annulation. Son résumé final, incluant `recompense_traitee` et
+`coupon_id`, reste conservé pour les rejeux, même après nettoyage du détail. Les
+coupons et leur index client sont conservés sans TTL avec leurs preuves
+d'utilisation. La persistance AOF sur disque conservé est prévue ; sa configuration
+et la reprise seront vérifiées lors de l'implémentation.
 
 ::: {.callout-note collapse="true"}
 ## Agrégat Tentative
@@ -533,10 +633,10 @@ version à une même séance du document.
 :::
 
 Une modification de tarif transmet la grille complète : Recherche peut donc
-recalculer le minimum de la séance sans deviner les autres tarifs. La correspondance
-locale entre séance et film et le recalcul du minimum global du film restent à
-détailler, notamment après annulation. Le retrait des séances passées nécessite
-également une règle liée au temps.
+recalculer le minimum de la séance sans deviner les autres tarifs. La recherche
+locale `nested` sur `seances.seance_id` retrouve le film concerné. Le recalcul du
+minimum global après retrait d'une séance et le retrait des séances passées
+restent à détailler.
 
 ### Consommations des fournisseurs
 
@@ -632,13 +732,13 @@ les documente ; il ne modifie pas les règles ni les événements correspondants
 | Sujet | Travail restant dans la conception |
 |---|---|
 | Décisions collectives | Renseigner les validations dans `DECISIONS.md`, dont l'accès au coupon sans billet du jour et le transfert sans événement |
-| Réservation et concurrence | Compléter les contrôles d'état et expliquer la vente unique malgré les blocages temporaires et les écritures dans plusieurs tables |
+| Réservation et concurrence | Choisir le mécanisme réalisant l'attribution atomique des places et la reprise des copies de lecture définies dans le modèle |
 | Identité et accès | Réaliser les contrôles du titulaire définis pour le quiz et préciser l'acheminement individuel des notifications et des secrets de coupons |
 | Déroulement du quiz | Définir le générateur du QR code et réaliser les règles de délais serveur, de questions figées et de reprise sans remise à zéro |
 | Mise à jour des copies | Préciser la propagation des changements de titre ou d'horaires déjà copiés |
 | Fiabilité des événements | Choisir les abonnements, l'ordre, les accusés de réception, la reprise et la publication après écriture ; réaliser la déduplication atomique définie dans le contrat commun |
-| Projections | Compléter la correspondance séance-film dans Recherche, le traitement du temps et la configuration des transactions Fournisseurs |
-| Stockage et exemples | Préciser clés, index, persistance et rétention ; compléter les données abrégées si une démonstration exécutable est attendue |
+| Projections | Réaliser les lectures séance-film définies dans Recherche, le traitement du temps et la configuration des transactions Fournisseurs |
+| Stockage et exemples | Créer les tables, clés, index et réglages de persistance documentés ; vérifier la reprise et compléter les données abrégées pour une démonstration exécutable |
 
 La relecture collective peut suivre trois parcours : l'achat jusqu'au coupon,
 l'annulation avec remboursement et la réception répétée d'un événement. Pour

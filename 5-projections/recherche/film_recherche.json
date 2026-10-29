@@ -16,7 +16,12 @@
     "à chaque événement, le document du film concerné est reconstruit puis réindexé"
   ],
   "evolution": "de nouveaux filtres (âge minimum, durée, note) peuvent être ajoutés en enrichissant les documents à partir des événements conservés",
-  "stockage": "un document par film dans l'index films d'Elasticsearch",
+  "stockage": "un document par film dans l'index films d'Elasticsearch ; _id est égal à film_id",
+  "lectures": [
+    { "requete": "Charger le document de recherche d'un film", "index": "films", "cle": "_id = film_id" },
+    { "requete": "Rechercher un titre avec filtres de genre, date et version", "index": "films", "cle": "titre, genres et champs nested seances.debut et seances.version" },
+    { "requete": "Retrouver le film concerné par une modification ou annulation de séance", "index": "films", "cle": "requête nested sur seances.seance_id" }
+  ],
   "exemple": {
     "film_id": "film_dune2",
     "titre": "Dune : Deuxième partie",

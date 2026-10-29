@@ -9,6 +9,10 @@
     "corriger les réponses"
   ],
   "stockage": "un hash Redis film:{film_id} pour le titre, un hash Redis questions:{film_id} pour les questions",
+  "lectures": [
+    { "requete": "Charger le titre du film pour le quiz", "cle": "film:{film_id}", "type": "hash" },
+    { "requete": "Charger la banque de questions locale", "cle": "questions:{film_id}", "type": "hash ; chaque champ est un question_id et sa valeur est la question sérialisée en JSON" }
+  ],
   "exemple": {
     "film_id": "film_dune2",
     "titre": "Dune : Deuxième partie",

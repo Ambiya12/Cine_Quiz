@@ -52,7 +52,7 @@ Les dossiers suivent les étapes des consignes du projet.
 | `index.qmd` | Le rapport complet : descriptif, parcours et justifications |
 | `DECISIONS.md` | Les choix de conception et leur validation par l'équipe |
 | `2-services-commandes/` | Les services et leurs commandes |
-| `3-agregats/` | Les six agrégats des services métier |
+| `3-agregats/` | Les six agrégats, leurs lectures, clés de stockage et règles de conservation |
 | `4-evenements-replicas/` | Les événements entre services et les réplicas |
 | `5-projections/` | Les projections vers de nouveaux services et leurs requêtes (étape 6 des consignes) |
 

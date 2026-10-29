@@ -1,7 +1,13 @@
 {
   "agregat": "Coupon",
   "service": "quiz",
-  "stockage": "un hash Redis coupon:{coupon_id} ; la clé est conservée après expiration pour garder la trace des coupons utilisés",
+  "stockage": "un hash Redis coupon:{coupon_id} et un set coupons_par_client:{client_id} contenant les coupon_id ; la clé du coupon et son index sont conservés après expiration pour garder la trace d'utilisation",
+  "lectures": [
+    { "requete": "Charger un coupon", "cle": "coupon:{coupon_id}", "type": "hash" },
+    { "requete": "Lister les coupons du client authentifié", "cle": "coupons_par_client:{client_id}", "type": "set de coupon_id ; charger ensuite chaque coupon" }
+  ],
+  "conservation": "données durables : coupon, utilise, utilise_le, expire_le et index client restent conservés ; expire_le interdit la remise après échéance sans supprimer la preuve d'utilisation ; aucun TTL sur ces clés",
+  "persistance": "Redis Quiz avec AOF sur stockage disque conservé et sans éviction automatique ; les coupons et leurs preuves d'utilisation doivent être retrouvés après redémarrage ; la configuration sera réalisée lors de l'implémentation",
   "regles": [
     "utilisable une seule fois",
     "donne droit à un seul produit : popcorn_moyen ou boisson, choisi au comptoir lors d'une visite ultérieure à celle du quiz",

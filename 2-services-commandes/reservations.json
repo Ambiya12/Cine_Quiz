@@ -35,10 +35,11 @@
         "la séance est toujours au statut programmee (elle n'est pas annulée)",
         "la séance n'a pas commencé au moment de la confirmation",
         "chaque place est bloquée par ce client",
+        "les places demandées sont distinctes ; leur disponibilité et leur attribution exclusive sont vérifiées ensemble dans billets_par_seance lors de la confirmation",
         "chaque tarif existe dans la grille de la séance",
         "le paiement couvre le montant total"
       ],
-      "effet": "crée la réservation et un billet par place, chacun avec son QR code, au statut payee ; l'acheteur est le titulaire de tous les billets",
+      "effet": "confirme uniquement après attribution de toutes les places à cette réservation ; crée un billet payee par place avec son QR code et alimente les cinq tables de l'agrégat ; l'acheteur est le titulaire de tous les billets ; en cas de conflit, aucune confirmation n'est publiée et aucune place partiellement attribuée à la demande n'est conservée",
       "evenement": "reservation.confirmee"
     },
     {

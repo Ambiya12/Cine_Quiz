@@ -2,6 +2,9 @@
   "agregat": "Salle",
   "service": "catalogue",
   "stockage": "un document dans la collection salles de MongoDB",
+  "lectures": [
+    { "requete": "Charger une salle et son plan", "collection": "salles", "cle": "salle_id, index unique" }
+  ],
   "regles": [
     "la capacité correspond au nombre de places du plan",
     "les places PMR font partie du plan"
