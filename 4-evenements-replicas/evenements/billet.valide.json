@@ -4,7 +4,7 @@
     "type": "billet.valide",
     "date": "2026-10-07T19:53:00Z",
     "emetteur": "reservations",
-    "recepteurs": ["quiz_fidelite", "social"],
+    "recepteurs": ["quiz"],
     "type_objet": "Reservation",
     "id_objet": "res_981",
     "modifications": [
@@ -20,10 +20,17 @@
       "fin_seance": "2026-10-07T22:46:00Z"
     }
   },
+  "regle_reception": "si la séance est connue comme annulée dans Quiz, ignorer cet événement : ne créer aucune tentative et n'envoyer aucune notification",
   "reactions": [
-    { "service": "quiz_fidelite", "agregat": "Tentative", "effet": "crée la tentative au statut en_attente_presence et programme la notification du début du générique" },
-    { "service": "quiz_fidelite", "agregat": "CompteFidelite", "effet": "ajoute 10 points de présence, met à jour les compteurs (séances vues, genres grâce au réplica, VOST)" },
-    { "service": "quiz_fidelite", "agregat": null, "effet": "envoie la notification « Bon film ! Reste jusqu'au générique pour débloquer ton quiz »" },
-    { "service": "social", "agregat": "Client", "effet": "remplace la relation VA_VOIR par A_VU entre le titulaire et le film, ou crée directement A_VU s'il n'y avait pas de VA_VOIR ; A_VU n'est visible des amis que si le titulaire a activé le partage, mais reste utilisée anonymement par les recommandations" }
+    {
+      "service": "quiz",
+      "agregat": "Tentative",
+      "effet": "crée la tentative au statut en_attente_presence et programme la notification du début du générique"
+    },
+    {
+      "service": "quiz",
+      "agregat": null,
+      "effet": "envoie la notification « Bon film ! Reste jusqu'au générique pour débloquer ton quiz »"
+    }
   ]
 }

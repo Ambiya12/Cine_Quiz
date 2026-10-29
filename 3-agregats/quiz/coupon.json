@@ -1,11 +1,12 @@
 {
   "agregat": "Coupon",
-  "service": "quiz_fidelite",
+  "service": "quiz",
   "stockage": "un hash Redis coupon:{coupon_id} ; la clé est conservée après expiration pour garder la trace des coupons utilisés",
   "regles": [
     "utilisable une seule fois",
     "utilisable seulement au comptoir de confiserie",
     "valable 30 jours après son émission",
+    "l'annulation de la séance d'origine ne révoque pas un coupon déjà émis",
     "rattaché au client, pas au billet : il peut servir lors de n'importe quelle visite",
     "le QR code contient un jeton secret, généré aléatoirement à la création, sans lequel le coupon ne peut pas être utilisé"
   ],

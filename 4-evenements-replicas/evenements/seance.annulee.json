@@ -4,7 +4,7 @@
     "type": "seance.annulee",
     "date": "2026-10-09T17:30:00Z",
     "emetteur": "catalogue",
-    "recepteurs": ["reservations", "recherche"],
+    "recepteurs": ["reservations", "quiz", "recherche"],
     "type_objet": "Seance",
     "id_objet": "seance_57",
     "modifications": [
@@ -13,7 +13,9 @@
     "contexte": { "motif": "panne du projecteur" }
   },
   "reactions": [
-    { "service": "reservations", "effet": "marque la séance annulée dans son réplica, annule toutes ses réservations avec un remboursement total, et publie un reservation.annulee pour chacune" },
+    { "service": "reservations", "effet": "marque la séance annulée dans son réplica ; annule et rembourse une seule fois les réservations encore confirmee, même après une entrée ; conserve montant, les paiements initiaux et valide_le ; publie reservation.annulee pour chaque nouvelle annulation ; ignore les réservations déjà annulées" },
+    { "service": "quiz", "agregat": "Tentative", "effet": "mémorise l'annulation de la séance et passe les tentatives en_attente_presence, ouverte ou en_cours au statut annulee ; arrête leurs questions et notifications ; conserve les tentatives terminee et les coupons déjà émis ; refuse toute nouvelle tentative pour cette séance" },
     { "service": "recherche", "effet": "retire la séance des résultats" }
-  ]
+  ],
+  "repetition": "une réception répétée ne crée aucun autre remboursement ni nouvel événement de réservation ; les quiz déjà annulés ou terminés et les coupons émis restent inchangés"
 }

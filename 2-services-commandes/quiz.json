@@ -1,15 +1,19 @@
 {
-  "service": "quiz_fidelite",
+  "service": "quiz",
   "base": "redis",
   "commandes": [
     {
       "nom": "ConfirmerPresence",
       "acteur": "spectateur",
-      "donnees": { "billet_id": "bil_981_2", "code_generique": "seance_42|88123|9f2c..." },
+      "donnees": {
+        "billet_id": "bil_981_2",
+        "code_generique": "seance_42|88123|9f2c..."
+      },
       "verifications": [
         "la signature du code est valide",
         "le créneau du code est le créneau actuel ou le précédent",
         "une tentative existe pour ce billet et cette séance",
+        "la séance n'est pas connue comme annulée",
         "la tentative est en attente de présence"
       ],
       "effet": "la tentative passe au statut ouverte, pour 2 heures",
@@ -21,6 +25,7 @@
       "donnees": { "billet_id": "bil_981_2" },
       "verifications": [
         "la tentative est ouverte",
+        "la séance n'est pas connue comme annulée",
         "la fenêtre de 2 heures n'est pas dépassée"
       ],
       "effet": "tire 10 questions au hasard parmi celles du film, mélange les choix ; la tentative passe au statut en_cours",
@@ -29,7 +34,11 @@
     {
       "nom": "RepondreQuestion",
       "acteur": "spectateur",
-      "donnees": { "billet_id": "bil_981_2", "question_id": "q7", "reponse": 2 },
+      "donnees": {
+        "billet_id": "bil_981_2",
+        "question_id": "q7",
+        "reponse": 2
+      },
       "verifications": [
         "la tentative est en cours",
         "la question est celle actuellement posée",
@@ -39,17 +48,6 @@
       "evenement": "quiz.termine"
     },
     {
-      "nom": "EchangerPoints",
-      "acteur": "spectateur",
-      "donnees": { "client_id": "client_12", "recompense": "boisson" },
-      "verifications": [
-        "la récompense existe dans le catalogue de récompenses",
-        "le solde de points est suffisant"
-      ],
-      "effet": "débite le solde du compte fidélité ; les points cumulés ne changent pas",
-      "evenement": "points.echanges"
-    },
-        {
       "nom": "UtiliserCoupon",
       "acteur": "agent",
       "donnees": { "coupon_id": "cpn_55", "jeton_qr": "e94d..." },

@@ -5,8 +5,13 @@
     {
       "nom": "BloquerPlace",
       "acteur": "spectateur",
-      "donnees": { "seance_id": "seance_42", "place": "F7", "client_id": "client_12" },
+      "donnees": {
+        "seance_id": "seance_42",
+        "place": "F7",
+        "client_id": "client_12"
+      },
       "verifications": [
+        "la séance est au statut programmee (elle n'est pas annulée)",
         "la séance n'a pas commencé",
         "la place existe dans le plan de la salle (réplica de la séance)",
         "la place n'est ni vendue ni déjà bloquée"
@@ -27,6 +32,8 @@
         "paiement_id": "pay_330"
       },
       "verifications": [
+        "la séance est toujours au statut programmee (elle n'est pas annulée)",
+        "la séance n'a pas commencé au moment de la confirmation",
         "chaque place est bloquée par ce client",
         "chaque tarif existe dans la grille de la séance",
         "le paiement couvre le montant total"
@@ -40,19 +47,26 @@
       "donnees": { "reservation_id": "res_981" },
       "verifications": [
         "le demandeur est l'acheteur de la réservation",
-        "la séance commence dans plus de 30 minutes",
-        "aucun billet de la réservation n'a été validé"
+        "pour une première annulation, la réservation est au statut confirmee",
+        "pour une première annulation, la séance commence dans plus de 30 minutes",
+        "pour une première annulation, aucun billet de la réservation n'a été validé"
       ],
-      "effet": "tous les billets passent au statut annulee, les places redeviennent libres, et un remboursement du montant total est ajouté aux paiements",
+      "effet": "la réservation et tous ses billets passent au statut annulee, les places redeviennent libres ; un remboursement négatif du montant d'achat est ajouté aux paiements sans effacer le paiement initial ; montant et les prix des billets sont conservés",
+      "repetition": "après contrôle de l'identité de l'acheteur, une réservation déjà annulée retourne déjà annulée avant les contrôles de délai, sans second remboursement ni nouvel événement",
       "evenement": "reservation.annulee"
     },
     {
       "nom": "TransfererBillet",
       "acteur": "spectateur",
-      "donnees": { "billet_id": "bil_981_1", "nouveau_titulaire_id": "client_40" },
+      "donnees": {
+        "billet_id": "bil_981_1",
+        "nouveau_titulaire_id": "client_40"
+      },
       "verifications": [
         "le demandeur est le titulaire actuel du billet",
-        "le billet n'est pas encore validé"
+        "le billet est au statut payee (ni validé ni annulé)",
+        "la réservation est au statut confirmee",
+        "la séance n'est pas annulée"
       ],
       "effet": "le billet change de titulaire et apparaît dans l'application du nouveau titulaire",
       "evenement": null
@@ -60,9 +74,15 @@
     {
       "nom": "ValiderBillet",
       "acteur": "agent",
-      "donnees": { "billet_id": "bil_981_2", "jeton_qr": "c71b...", "justificatif_verifie": true },
+      "donnees": {
+        "billet_id": "bil_981_2",
+        "jeton_qr": "c71b...",
+        "justificatif_verifie": true
+      },
       "verifications": [
         "le jeton correspond au billet",
+        "la réservation est au statut confirmee",
+        "la séance n'est pas annulée",
         "le billet est au statut payee (il n'a pas déjà été validé)",
         "la séance a lieu aujourd'hui, dans cette salle",
         "si le tarif est réduit ou enfant, le justificatif a été vérifié"

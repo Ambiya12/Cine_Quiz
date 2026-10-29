@@ -6,7 +6,9 @@
     "l'heure du générique et l'heure de fin sont calculées à partir du film, jamais saisies",
     "deux séances ne peuvent pas occuper la même salle en même temps",
     "tous les tarifs sont positifs",
-    "une séance annulée ne peut plus être modifiée"
+    "une séance annulée ne peut plus être modifiée",
+    "le cinéma peut annuler avant la fin prévue de la séance, y compris pendant celle-ci ; après cette heure, une première annulation est refusée",
+    "répéter une annulation retourne déjà annulée sans nouvel événement"
   ],
   "references": ["film_id", "salle_id"],
   "exemple": {

@@ -5,11 +5,11 @@
     "type": "le fait qui s'est produit, au passé : objet.verbe",
     "date": "date et heure du fait, au format ISO 8601",
     "emetteur": "le service propriétaire de l'agrégat concerné",
-    "recepteurs": "les services qui écoutent cet événement",
+    "recepteurs": "les services qui écoutent cet événement ; liste vide si aucun consommateur n'est défini dans le périmètre actuel",
     "type_objet": "l'agrégat concerné",
     "id_objet": "l'identifiant de cet agrégat",
     "donnees": "pour une création : les valeurs de l'agrégat utiles aux récepteurs",
-    "modifications": "pour une mise à jour : la liste des données modifiées et de leur nouvelle valeur",
+    "modifications": "pour une mise à jour : la liste des données modifiées et de leur nouvelle valeur ; operation: ajouter ajoute un élément à une liste sans remplacer son contenu",
     "contexte": "les informations complémentaires dont les récepteurs ont besoin pour réagir sans rappeler l'émetteur"
   },
   "regles": [

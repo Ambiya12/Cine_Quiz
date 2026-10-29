@@ -3,8 +3,8 @@
     "id_evenement": "evt_0700",
     "type": "quiz.termine",
     "date": "2026-10-07T23:08:00Z",
-    "emetteur": "quiz_fidelite",
-    "recepteurs": ["quiz_fidelite", "social"],
+    "emetteur": "quiz",
+    "recepteurs": ["quiz"],
     "type_objet": "Tentative",
     "id_objet": "bil_981_2",
     "modifications": [
@@ -19,8 +19,10 @@
     }
   },
   "reactions": [
-    { "service": "quiz_fidelite", "agregat": "CompteFidelite", "effet": "ajoute 90 points (9 × 10), met à jour les compteurs, débloque le badge premier_quiz (+50 points)" },
-    { "service": "quiz_fidelite", "agregat": "Coupon", "effet": "tire au sort (50 % de chances pour 8 ou 9/10) ; si gagné, crée un coupon popcorn_moyen et publie coupon.emis" },
-    { "service": "social", "agregat": "Client", "effet": "ajoute le score 9 sur la relation A_VU entre le client et le film" }
+    {
+      "service": "quiz",
+      "agregat": "Coupon",
+      "effet": "pour une tentative terminee, même si sa séance est ensuite annulée, tire au sort (50 % de chances pour 8 ou 9/10) ; si gagné, crée un coupon popcorn_moyen et publie coupon.emis ; une tentative annulee ne donne aucun coupon"
+    }
   ]
 }

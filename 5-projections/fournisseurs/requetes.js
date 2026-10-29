@@ -1,5 +1,5 @@
 // Projection Fournisseurs : ConsommationJournaliere
-// Source : événements coupon.utilise émis par le service Quiz et fidélité
+// Source : événements coupon.utilise émis par le service Quiz et coupons
 
 // 1. Conserver l'événement reçu.
 //    L'identifiant de l'événement sert de _id : si le même événement arrive

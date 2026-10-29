@@ -1,9 +1,12 @@
 {
   "agregat": "Tentative",
-  "service": "quiz_fidelite",
+  "service": "quiz",
   "stockage": "un hash Redis tentative:{billet_id}, qui expire automatiquement après la fermeture",
   "regles": [
     "une seule tentative par billet validé",
+    "à réception de seance.annulee, les tentatives en_attente_presence, ouverte ou en_cours deviennent annulee et ne peuvent plus reprendre",
+    "les tentatives déjà terminee conservent leur résultat ; les coupons déjà émis restent valables selon leur date d'expiration",
+    "aucune nouvelle tentative n'est créée pour une séance connue comme annulée",
     "elle ne s'ouvre qu'avec un scan du QR code pendant le générique",
     "elle doit être démarrée dans les 2 heures suivant son ouverture",
     "10 questions tirées au hasard parmi celles du film",

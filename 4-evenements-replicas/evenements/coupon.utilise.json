@@ -3,7 +3,7 @@
     "id_evenement": "evt_0912",
     "type": "coupon.utilise",
     "date": "2026-10-15T19:40:00Z",
-    "emetteur": "quiz_fidelite",
+    "emetteur": "quiz",
     "recepteurs": ["fournisseurs"],
     "type_objet": "Coupon",
     "id_objet": "cpn_55",

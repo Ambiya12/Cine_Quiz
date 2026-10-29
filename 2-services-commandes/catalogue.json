@@ -84,7 +84,10 @@
       "nom": "ModifierSeance",
       "acteur": "gerant",
       "donnees": { "seance_id": "seance_42", "tarifs": { "reduit": 8.50 } },
-      "verifications": ["la séance n'a pas encore commencé"],
+      "verifications": [
+        "la séance est au statut programmee (elle n'est pas annulée)",
+        "la séance n'a pas encore commencé"
+      ],
       "effet": "met à jour la séance ; les billets déjà vendus gardent leur prix",
       "evenement": "seance.modifiee"
     },
@@ -92,8 +95,9 @@
       "nom": "AnnulerSeance",
       "acteur": "gerant",
       "donnees": { "seance_id": "seance_42", "motif": "panne du projecteur" },
-      "verifications": ["la séance n'est pas terminée"],
-      "effet": "la séance passe au statut annulée",
+      "verifications": ["pour une première annulation, l'heure de fin prévue de la séance n'est pas atteinte"],
+      "effet": "la séance passe au statut annulee ; ses réservations encore confirmées sont remboursées par Réservations et ses quiz non terminés sont annulés par Quiz à réception de l'événement",
+      "repetition": "après contrôle du rôle de gérant, une séance déjà annulée retourne déjà annulée, sans nouvel événement ni autre remboursement, même après l'heure de fin prévue",
       "evenement": "seance.annulee"
     }
   ]

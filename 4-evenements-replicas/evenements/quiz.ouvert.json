@@ -3,7 +3,7 @@
     "id_evenement": "evt_0610",
     "type": "quiz.ouvert",
     "date": "2026-10-07T22:41:00Z",
-    "emetteur": "quiz_fidelite",
+    "emetteur": "quiz",
     "recepteurs": ["application_spectateur"],
     "type_objet": "Tentative",
     "id_objet": "bil_981_2",
@@ -17,6 +17,9 @@
     }
   },
   "reactions": [
-    { "service": "application_spectateur", "effet": "affiche la notification « Ton quiz sur Dune est prêt, tu as jusqu'à 00 h 41 »" }
+    {
+      "service": "application_spectateur",
+      "effet": "affiche la notification « Ton quiz sur Dune est prêt, tu as jusqu'à 00 h 41 »"
+    }
   ]
 }

@@ -4,12 +4,15 @@
   "stockage": "trois tables Cassandra : reservations (par reservation_id), billets_par_seance (par seance_id et place) et billets_par_client (par titulaire_id)",
   "regles": [
     "un billet par place, chacun avec son propre QR code",
-    "le montant est égal à la somme des prix des billets",
-    "la somme des paiements et remboursements est égale au montant",
+    "montant est le prix d'achat initial, égal à la somme des prix des billets ; il reste inchangé après annulation",
+    "le montant net payé est calculé en additionnant les paiements positifs et remboursements négatifs : montant avant remboursement, 0 après remboursement total ; aucun champ supplémentaire n'est stocké",
+    "le remboursement est ajouté à paiements sans effacer le paiement initial",
     "le prix d'un billet est celui de la séance au moment de l'achat et ne change plus",
     "une place ne peut être vendue qu'une seule fois",
     "un billet à tarif réduit ou enfant n'est validé que si le justificatif a été vérifié",
-    "seul l'acheteur peut annuler, jusqu'à 30 minutes avant la séance, si aucun billet n'est validé",
+    "l'acheteur peut annuler plus de 30 minutes avant la séance si aucun billet n'est validé",
+    "le cinéma peut annuler avant la fin prévue de la séance, même après une entrée ; les réservations encore confirmées sont remboursées et les dates valide_le sont conservées",
+    "une réservation déjà annulée ne reçoit jamais un autre remboursement, même si une annulation cinéma suit une annulation acheteur",
     "une réservation ne peut pas être modifiée"
   ],
   "references": ["acheteur_id", "seance_id", "titulaire_id"],

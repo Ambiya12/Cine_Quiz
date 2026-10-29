@@ -1,8 +1,8 @@
 # CinéQuiz
 
 Projet NoSQL : l'application d'un cinéma fictif, découpée en services. Le spectateur
-réserve sa séance, puis répond à un quiz sur le film qu'il vient de voir pour gagner
-des points, des badges et des coupons à utiliser au comptoir de confiserie.
+réserve sa séance, puis répond à un quiz sur le film qu'il vient de voir pour tenter
+de gagner un coupon à utiliser au comptoir de confiserie.
 
 Chaque service possède ses propres données et sa propre base NoSQL. Les services
 communiquent uniquement par événements, et gardent des réplicas des données dont
@@ -15,7 +15,7 @@ ils ont besoin pour rester autonomes.
 3. **Entrée** : un agent scanne chaque billet et vérifie les justificatifs de tarif réduit.
 4. **Générique** : le spectateur scanne le QR code affiché à l'écran ; son quiz s'ouvre pour 2 heures.
 5. **Quiz** : 10 questions tirées au hasard, 15 secondes chacune.
-6. **Récompenses** : points, badges et parfois un coupon.
+6. **Récompense** : selon son score, le spectateur peut gagner un coupon.
 7. **Comptoir** : le coupon est utilisé une seule fois ; le fournisseur reçoit les totaux.
 
 ## Les services
@@ -24,10 +24,16 @@ ils ont besoin pour rester autonomes.
 |---|---|---|
 | Catalogue | MongoDB | Film, Salle, Séance |
 | Réservations | Cassandra (+ Redis) | Réservation |
-| Quiz et fidélité | Redis | Tentative, CompteFidelite, Coupon |
-| Social | Neo4j | Client |
+| Quiz et coupons | Redis | Tentative, Coupon |
 | Recherche | Elasticsearch | Aucun (projection) |
 | Fournisseurs | MongoDB | Aucun (projection) |
+
+Le périmètre comprend trois services métier et deux services de projection.
+Le service Quiz et coupons utilise l'identifiant `quiz` dans les contrats et les
+chemins du dépôt. Les identifiants des clients proviennent du prestataire
+d'authentification simulé ; la gestion des profils reste hors périmètre.
+
+Le dépôt décrit la conception ; il ne contient pas encore une application exécutable.
 
 ## Équipe
 
@@ -46,7 +52,7 @@ Les dossiers suivent les étapes des consignes du projet.
 | `index.qmd` | Le rapport complet : descriptif, parcours et justifications |
 | `DECISIONS.md` | Les choix de conception et leur validation par l'équipe |
 | `2-services-commandes/` | Les services et leurs commandes |
-| `3-agregats/` | Les agrégats de chaque service et les barèmes de fidélité |
+| `3-agregats/` | Les six agrégats des services métier |
 | `4-evenements-replicas/` | Les événements entre services et les réplicas |
 | `5-projections/` | Les projections vers de nouveaux services et leurs requêtes (étape 6 des consignes) |
 

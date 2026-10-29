@@ -4,7 +4,7 @@
     "type": "film.cree",
     "date": "2026-09-28T09:00:00Z",
     "emetteur": "catalogue",
-    "recepteurs": ["quiz_fidelite", "social", "recherche"],
+    "recepteurs": ["quiz", "recherche"],
     "type_objet": "Film",
     "id_objet": "film_dune2",
     "donnees": {
@@ -17,8 +17,10 @@
     }
   },
   "reactions": [
-    { "service": "quiz_fidelite", "effet": "crée le réplica QuestionsFilmReplica, encore sans questions" },
-    { "service": "social", "effet": "crée le nœud Film (FilmReplica)" },
+    {
+      "service": "quiz",
+      "effet": "crée le réplica QuestionsFilmReplica, encore sans questions"
+    },
     { "service": "recherche", "effet": "indexe le film (voir 5-projections)" }
   ]
 }
