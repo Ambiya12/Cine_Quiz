@@ -1,6 +1,6 @@
 {
   "service": "reservations",
-  "base": "cassandra (+ redis pour le verrou des places)",
+  "base": "MongoDB (cinq collections pour les réservations) ; Redis (blocage temporaire des places et Lists pour le traitement des événements)",
   "commandes": [
     {
       "nom": "BloquerPlace",
@@ -16,7 +16,7 @@
         "la place existe dans le plan de la salle (réplica de la séance)",
         "la place n'est ni vendue ni déjà bloquée"
       ],
-      "effet": "verrou Redis de 5 minutes sur la place, qui disparaît seul si le paiement n'aboutit pas",
+      "effet": "verrou temporaire Redis de 5 minutes sur la place ; ce verrou ne constitue pas une vente et ne remplace pas le contrôle atomique MongoDB",
       "evenement": null
     },
     {
@@ -26,51 +26,47 @@
         "seance_id": "seance_42",
         "client_id": "client_12",
         "billets": [
-          { "place": "F7", "tarif": "plein" },
-          { "place": "F8", "tarif": "reduit" }
+          {
+            "place": "F7",
+            "tarif": "plein"
+          },
+          {
+            "place": "F8",
+            "tarif": "reduit",
+            "titulaire_id": "client_40"
+          }
         ],
-        "paiement_id": "pay_330"
+        "paiement_id": "pay_330",
+        "demande_id": "demande_330"
       },
       "verifications": [
         "la séance est toujours au statut programmee (elle n'est pas annulée)",
         "la séance n'a pas commencé au moment de la confirmation",
         "chaque place est bloquée par ce client",
-        "les places demandées sont distinctes ; leur disponibilité et leur attribution exclusive sont vérifiées ensemble dans billets_par_seance lors de la confirmation",
+        "les places demandées sont distinctes ; leur disponibilité et leur attribution exclusive sont vérifiées ensemble dans la collection MongoDB billets_par_seance lors de la confirmation",
         "chaque tarif existe dans la grille de la séance",
-        "le paiement couvre le montant total"
+        "le paiement couvre le montant total",
+        "une même demande_id ou un même paiement_id déjà enregistré ne crée pas de deuxième achat (identifiants uniques dans MongoDB)"
       ],
-      "effet": "confirme uniquement après attribution de toutes les places à cette réservation ; crée un billet payee par place avec son QR code et alimente les cinq tables de l'agrégat ; l'acheteur est le titulaire de tous les billets ; en cas de conflit, aucune confirmation n'est publiée et aucune place partiellement attribuée à la demande n'est conservée",
-      "evenement": "reservation.confirmee"
+      "effet": "Dans MongoDB, contrôle et attribution atomiques des places dans billets_par_seance, avec un index unique sur (seance_id, place) pour empêcher deux ventes actives ; crée une réservation et un billet avec QR code par place, puis met à jour les cinq collections. Si une place est déjà attribuée, la réservation ne doit pas être confirmée. L’acheteur et le titulaire peuvent être différents dès l’achat ; aucune modification ou transfert après confirmation.",
+      "evenement": "reservation.confirmee",
+      "repetition": "une demande déjà confirmée retourne la réservation existante sans nouvel achat, sans nouveaux billets et sans nouvel événement ; les identifiants de demande et de paiement sont contrôlés de manière durable"
     },
     {
       "nom": "AnnulerReservation",
       "acteur": "spectateur",
-      "donnees": { "reservation_id": "res_981" },
+      "donnees": {
+        "reservation_id": "res_981"
+      },
       "verifications": [
         "le demandeur est l'acheteur de la réservation",
         "pour une première annulation, la réservation est au statut confirmee",
-        "pour une première annulation, la séance commence dans plus de 30 minutes",
+        "pour une première annulation, la séance commence dans au moins 1 heure",
         "pour une première annulation, aucun billet de la réservation n'a été validé"
       ],
-      "effet": "la réservation et tous ses billets passent au statut annulee, les places redeviennent libres ; un remboursement négatif du montant d'achat est ajouté aux paiements sans effacer le paiement initial ; montant et les prix des billets sont conservés",
-      "repetition": "après contrôle de l'identité de l'acheteur, une réservation déjà annulée retourne déjà annulée avant les contrôles de délai, sans second remboursement ni nouvel événement",
+      "effet": "Par une mise à jour conditionnelle MongoDB (statut confirmee), annule la réservation et ses billets, libère les places dans billets_par_seance et enregistre un seul remboursement intégral ; conserve le paiement initial et les prix des billets. Les modifications liées doivent rester cohérentes.",
+      "repetition": "après vérification de l’acheteur, une réservation déjà annulée retourne le résultat existant sans second remboursement et sans nouvel événement ; le remboursement porte un identifiant unique lié à la réservation",
       "evenement": "reservation.annulee"
-    },
-    {
-      "nom": "TransfererBillet",
-      "acteur": "spectateur",
-      "donnees": {
-        "billet_id": "bil_981_1",
-        "nouveau_titulaire_id": "client_40"
-      },
-      "verifications": [
-        "le demandeur est le titulaire actuel du billet",
-        "le billet est au statut payee (ni validé ni annulé)",
-        "la réservation est au statut confirmee",
-        "la séance n'est pas annulée"
-      ],
-      "effet": "le billet change de titulaire et apparaît dans l'application du nouveau titulaire",
-      "evenement": null
     },
     {
       "nom": "ValiderBillet",
@@ -90,6 +86,22 @@
       ],
       "effet": "le billet passe au statut validee ; le spectateur peut entrer",
       "evenement": "billet.valide"
+    },
+    {
+      "nom": "AnnulerSeance",
+      "acteur": "service (événement seance.annulee reçu du Catalogue)",
+      "donnees": {
+        "seance_id": "seance_42",
+        "id_evenement": "evt_42"
+      },
+      "verifications": [
+        "l’événement concerne une séance connue du réplica",
+        "l’id_evenement n’a pas déjà été traité"
+      ],
+      "effet": "À réception de seance.annulee avant la fin prévue de la séance, annule les réservations encore confirmées, même si un billet a été validé, et rembourse intégralement chacune une seule fois ; met à jour billets_par_seance. Le même id_evenement traité ne doit pas produire de nouvelles modifications.",
+      "repetition": "le même id_evenement ou une nouvelle tentative de remboursement ne produit aucun remboursement supplémentaire",
+      "evenement": "reservation.annulee"
     }
-  ]
+  ],
+  "gestion_evenements": "Redis Lists : RPUSH dans la liste ready ; LMOVE de ready vers processing ; après traitement, LREM pour acquitter. En cas d’arrêt avant acquittement, l’événement peut être remis dans ready et reçu à nouveau. Chaque id_evenement traité est mémorisé dans MongoDB avec les modifications correspondantes pour éviter un second effet métier. Attention : la mise à jour MongoDB et la publication dans Redis ne sont pas une seule opération atomique ; ce point reste une limite technique à signaler."
 }

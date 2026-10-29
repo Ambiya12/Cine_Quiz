@@ -3,16 +3,23 @@
   "dans_le_service": "reservations",
   "source": "catalogue : agrégats Seance, Film (titre) et Salle (plan)",
   "cree_par": "seance.creee",
-  "mis_a_jour_par": ["seance.modifiee", "seance.annulee"],
+  "mis_a_jour_par": [
+    "seance.modifiee",
+    "seance.annulee"
+  ],
   "usage": [
     "vérifier qu'une place existe dans le plan de la salle",
     "calculer le prix des billets à partir des tarifs",
     "refuser une réservation pour une séance commencée ou annulée",
     "transmettre les horaires dans l'événement billet.valide"
   ],
-  "stockage": "une table Cassandra seances_replica, par seance_id",
+  "stockage": "une collection MongoDB seances_replica, avec un index unique sur seance_id",
   "lectures": [
-    { "requete": "Charger localement le plan, les tarifs et les horaires pour une réservation", "table": "seances_replica", "cle": "partition seance_id" }
+    {
+      "requete": "Charger localement le plan, les tarifs et les horaires pour une réservation",
+      "collection": "seances_replica",
+      "cle": "index unique sur seance_id"
+    }
   ],
   "exemple": {
     "seance_id": "seance_42",
@@ -23,12 +30,47 @@
     "debut_generique": "2026-10-07T22:38:00Z",
     "fin": "2026-10-07T22:46:00Z",
     "version": "VF",
-    "tarifs": { "plein": 11.50, "reduit": 8.50, "enfant": 7.00 },
+    "tarifs": {
+      "plein": 11.5,
+      "reduit": 8.5,
+      "enfant": 7.0
+    },
     "plan": {
-      "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"],
+      "rangees": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O"
+      ],
       "places_par_rangee": 20,
-      "places_pmr": ["A1", "A2"]
+      "places_pmr": [
+        "A1",
+        "A2"
+      ]
     },
     "statut": "programmee"
+  },
+  "traitement_evenements": {
+    "transport": "Redis Lists : une List ready pour le service Réservations et une List processing (RPUSH, LMOVE, LREM), selon le laboratoire Redis",
+    "evenements_recus": [
+      "seance.creee",
+      "seance.modifiee",
+      "seance.annulee"
+    ],
+    "mise_a_jour": "Pour seance.creee, créer le document de la séance ; pour seance.modifiee, remplacer les champs concernés par leur valeur complète ou ajouter un élément à une liste, sans chemin à l’intérieur des tableaux ; pour seance.annulee, mettre le statut à annulee.",
+    "doublons": "Mémoriser chaque id_evenement traité dans MongoDB ; valider la modification du réplica et cet enregistrement ensemble. Un événement reçu à nouveau ne doit pas provoquer un deuxième effet métier.",
+    "accuse_reception": "Retirer le message de la List processing avec LREM après traitement réussi ; en cas d’échec avant cet accusé de réception, le message peut être remis dans ready.",
+    "limite": "La mise à jour MongoDB et le déplacement ou retrait d’un message dans Redis ne forment pas une opération atomique unique."
   }
 }
