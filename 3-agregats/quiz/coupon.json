@@ -4,16 +4,20 @@
   "stockage": "un hash Redis coupon:{coupon_id} ; la clé est conservée après expiration pour garder la trace des coupons utilisés",
   "regles": [
     "utilisable une seule fois",
+    "donne droit à un seul produit : popcorn_moyen ou boisson, choisi au comptoir lors d'une visite ultérieure à celle du quiz",
     "utilisable seulement au comptoir de confiserie",
     "valable 30 jours après son émission",
     "l'annulation de la séance d'origine ne révoque pas un coupon déjà émis",
-    "rattaché au client, pas au billet : il peut servir lors de n'importe quelle visite",
+    "rattaché au client ; tentative_id conserve l'origine du gain ; au plus un coupon par tentative",
+    "produits_eligibles contient popcorn_moyen et boisson ; type et fournisseur_id sont null à l'émission, puis fixés à l'utilisation selon le produit choisi et sa configuration fournisseur",
     "le QR code contient un jeton secret, généré aléatoirement à la création, sans lequel le coupon ne peut pas être utilisé"
   ],
-  "references": ["client_id", "fournisseur_id", "film_origine_id"],
+  "references": ["client_id", "tentative_id", "fournisseur_id", "film_origine_id"],
   "exemple": {
     "coupon_id": "cpn_55",
     "client_id": "client_12",
+    "tentative_id": "bil_981_2",
+    "produits_eligibles": ["popcorn_moyen", "boisson"],
     "type": "popcorn_moyen",
     "origine": "quiz",
     "film_origine_id": "film_dune2",

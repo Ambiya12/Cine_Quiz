@@ -22,8 +22,9 @@ des profils reste hors périmètre.
 | Accès au quiz | Titulaire authentifié correspondant au client_id de la tentative ; code signé encore valide de la même séance, scanné entre le début du générique inclus et la fin de séance exclue | |
 | Déroulement du quiz | 2 heures pour démarrer ; ensuite 10 questions de 15 secondes, au plus 150 secondes après le démarrage ; les absences sont fausses et le serveur avance même sans réponse | |
 | Choix du quiz | Identifiants de choix stables ; questions et ordre des choix figés au démarrage ; correction privée côté serveur ; aucune remise à zéro lors d'une reconnexion | |
-| Récompense du quiz | Aucun coupon en dessous de 8/10 ; tirage à 50 % pour 8 ou 9/10 ; coupon garanti à 10/10 ; un popcorn moyen à retirer au comptoir | |
-| Coupons | Valables 30 jours, usage unique, rattachés au client, protégés par un jeton secret dans le QR code | |
+| Récompense du quiz | Aucun coupon de 0 à 7/10 ; un tirage à 50 % pour 8 ou 9/10 ; coupon garanti à 10/10 ; un popcorn moyen ou une boisson au choix à une visite ultérieure | |
+| Attribution unique | Une décision enregistrée par tentative, même perdante ; un rejeu ne répète ni le tirage ni la création du coupon ; au plus un coupon par tentative | |
+| Coupons | Valables 30 jours, usage unique, rattachés au client et à leur tentative d'origine ; produit choisi au comptoir à une visite ultérieure ; protégés par un jeton secret dans le QR code | |
 | Coupon sans billet du jour | Autorisé pour l'instant (question ouverte) | |
 | Transfert de billet | Le titulaire change dans Réservations ; aucun événement de transfert n'est défini dans le périmètre actuel | |
 | Paiement et authentification | Hors périmètre, assurés par des prestataires simulés | |

@@ -9,10 +9,12 @@
     "id_objet": "cpn_55",
     "donnees": {
       "client_id": "client_12",
-      "type": "popcorn_moyen",
+      "tentative_id": "bil_981_2",
+      "produits_eligibles": ["popcorn_moyen", "boisson"],
+      "type": null,
       "origine": "quiz",
       "film_origine_id": "film_dune2",
-      "fournisseur_id": "fourn_popcorn_1",
+      "fournisseur_id": null,
       "jeton_qr": "e94d...",
       "emis_le": "2026-10-07T23:08:00Z",
       "expire_le": "2026-11-06T23:08:00Z",
@@ -20,6 +22,6 @@
     }
   },
   "reactions": [
-    { "service": "application_spectateur", "effet": "affiche la notification « Tu as gagné un popcorn ! » et ajoute le coupon, avec son QR code, dans « Mes coupons »" }
+    { "service": "application_spectateur", "effet": "affiche la notification « Un popcorn ou une boisson offert à ta prochaine visite ! » et ajoute le coupon, avec son QR code et sa date d'expiration, dans « Mes coupons »" }
   ]
 }

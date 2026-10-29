@@ -34,7 +34,7 @@ db.consommations.aggregate([
 ])
 
 // 4. Évolution : une nouvelle question, sans toucher aux autres services.
-//    « Quels films font gagner le plus de popcorns ? »
+//    « Quels films sont à l'origine du plus de coupons utilisés ? »
 //    On la calcule à partir des événements conservés.
 db.evenements_recus.aggregate([
   { $match: { type: "coupon.utilise", fournisseur_id: "fourn_popcorn_1" } },

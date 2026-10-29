@@ -22,7 +22,14 @@
     {
       "service": "quiz",
       "agregat": "Coupon",
-      "effet": "pour une tentative terminee, même si sa séance est ensuite annulée, tire au sort (50 % de chances pour 8 ou 9/10) ; si gagné, crée un coupon popcorn_moyen et publie coupon.emis ; une tentative annulee ne donne aucun coupon"
+      "effet": "pour une tentative terminee, même si sa séance est ensuite annulée, traiter une seule récompense : de 0 à 7/10, aucun coupon ; pour 8 ou 9/10, un tirage unique à 50 % ; à 10/10, coupon garanti sans tirage ; si gagné, créer un coupon pour un popcorn moyen ou une boisson au choix lors d'une visite ultérieure et publier coupon.emis"
     }
+  ],
+  "regles": [
+    "le score doit être un entier compris entre 0 et 10 ; une tentative annulee ne donne aucun coupon",
+    "la décision est identifiée par id_objet, l'identifiant de la tentative qui correspond à billet_id",
+    "si recompense_traitee est déjà true, restituer la décision enregistrée sans tirage, nouveau coupon ni nouvel événement coupon.emis",
+    "sinon, enregistrer atomiquement recompense_traitee à true et coupon_id, même si le résultat est perdant ; créer le coupon dans la même opération si gagné",
+    "une tentative produit au plus un coupon, lié par tentative_id ; cette règle s'applique aussi à deux réceptions simultanées"
   ]
 }

@@ -11,8 +11,8 @@ toc-depth: 2
 CinéQuiz est l'application d'un cinéma fictif. Elle accompagne le spectateur de
 la réservation d'une place jusqu'à l'utilisation de récompenses au comptoir de
 confiserie. Après la séance, le spectateur peut répondre à un quiz sur le film
-qu'il vient de voir. Selon son résultat, il peut gagner un coupon à utiliser
-au comptoir.
+qu'il vient de voir. Selon son résultat, il peut gagner un coupon pour un popcorn
+ou une boisson au choix au comptoir lors d'une prochaine visite.
 
 Le projet étudie la répartition des données entre plusieurs services utilisant
 des bases NoSQL. Chaque service est propriétaire de ses données et maintient
@@ -137,11 +137,25 @@ une limite de démarrage à 00:41, peut finir jusqu'à 00:43:29. Les bonnes rép
 ne sont jamais transmises au téléphone. Celui-ci reçoit uniquement la question
 courante et ses choix publics.
 
-Un score inférieur à 8/10 ne donne pas de coupon de quiz. Pour 8 ou 9/10, la
-proposition prévoit un tirage à 50 % ; à 10/10, le coupon est garanti. Les coupons
-sont rattachés au client, valables trente jours et utilisables une seule fois
-au comptoir grâce à un jeton secret. L'utilisation sans billet du jour reste
-une question à valider.
+La récompense dépend du score :
+
+| Score | Récompense |
+|---|---|
+| 0 à 7/10 | Aucun coupon |
+| 8 ou 9/10 | Un seul tirage, avec 50 % de chances de gagner un coupon |
+| 10/10 | Coupon garanti, sans tirage |
+
+Le coupon donne droit à un seul popcorn moyen ou une seule boisson, choisi au
+comptoir lors d'une visite ultérieure à celle du quiz. Il appartient au client,
+reste valable trente jours et s'utilise une seule fois avec son jeton secret.
+Le besoin d'un billet du jour lors de cette visite reste une question à valider.
+
+Une seule décision est enregistrée par tentative (`billet_id`) :
+`recompense_traitee` devient vrai même pour un score insuffisant ou un tirage
+perdant, et `coupon_id` reste nul si aucun coupon n'est gagné. Si `quiz.termine`
+est reçu de nouveau, cette décision est réutilisée sans nouveau tirage ni coupon.
+Le contrôle et l'enregistrement, avec la création du coupon si gagné, forment
+une seule opération atomique. Chaque coupon conserve son `tentative_id` d'origine.
 
 À réception de `seance.annulee`, Quiz annule les tentatives en attente de présence,
 ouvertes ou en cours et n'en crée plus pour cette séance. Les tentatives déjà
@@ -302,15 +316,20 @@ champ supplémentaire. Par exemple, après remboursement d'un achat de 20,50 €
 
 **Tentative** est identifiée par le billet validé. Elle conserve les horaires
 d'accès, les questions tirées, leur copie dans `questions_figees` avec les choix
-dans l'ordre affiché et leur correction privée, la progression et le score. **Coupon**
+dans l'ordre affiché et leur correction privée, la progression, le score et le
+résultat d'attribution du coupon. **Coupon**
 possède son propre identifiant, sa date limite et son état d'utilisation :
 son cycle de vie se poursuit après la fin du quiz.
+À l'émission, il indique les deux `produits_eligibles` ; `type` et `fournisseur_id`
+sont nuls. Lors de la remise, le choix du client fixe ces deux valeurs selon la
+configuration des produits du cinéma. Le fournisseur est déterminé côté serveur.
 
 Le dépôt prévoit des hashes Redis pour les tentatives et les coupons.
 L'expiration ne supprime jamais un quiz en cours : son nettoyage suit le traitement
-de sa fin ou de son annulation. Le nettoyage d'une tentative et la conservation
-des preuves d'utilisation des coupons doivent être traités séparément : toutes les données du service ne sont
-pas temporaires. La politique de persistance reste à préciser.
+de sa fin ou de son annulation. Son résumé `recompense_traitee` et `coupon_id`
+reste conservé pour les rejeux, même après nettoyage du détail. Les preuves
+d'utilisation des coupons sont aussi conservées : toutes les données du service
+ne sont pas temporaires. La politique de persistance reste à préciser.
 
 ::: {.callout-note collapse="true"}
 ## Agrégat Tentative
@@ -360,9 +379,9 @@ récepteurs ; elles ne constituent pas des consommateurs déjà implémentés.
 | `reservation.annulee` | Réservations | Aucun dans le périmètre actuel | Conserver le contrat décrivant l'annulation d'une réservation |
 | `billet.valide` | Réservations | Quiz et coupons | Créer une tentative en attente de présence et préparer les notifications |
 | `quiz.ouvert` | Quiz et coupons | Application spectateur | Signaler la disponibilité du quiz et son échéance |
-| `quiz.termine` | Quiz et coupons | Quiz et coupons | Déterminer l'attribution d'un coupon d'après le score |
-| `coupon.emis` | Quiz et coupons | Application spectateur | Afficher le coupon et son QR code |
-| `coupon.utilise` | Quiz et coupons | Fournisseurs | Alimenter les consommations journalières |
+| `quiz.termine` | Quiz et coupons | Quiz et coupons | Enregistrer une seule décision par tentative : aucun coupon, tirage unique ou coupon garanti selon le score |
+| `coupon.emis` | Quiz et coupons | Application spectateur | Afficher le coupon, son QR code et le choix popcorn ou boisson pour une prochaine visite |
+| `coupon.utilise` | Quiz et coupons | Fournisseurs | Alimenter les consommations journalières du produit réellement choisi |
 
 Les événements de réservation restent décrits avec des listes `recepteurs` et
 `reactions` vides : aucun consommateur n'est défini pour eux dans ce périmètre.
@@ -509,7 +528,7 @@ les données de consommation et regroupe les quantités dans un document MongoDB
 par fournisseur et par date. Cette projection couvre les remises contre coupons,
 pas l'ensemble des ventes payantes de confiserie.
 
-L'exemple contient 42 popcorns moyens et 17 menus, soit 59 remises pour le
+L'exemple contient 42 popcorns moyens et 17 boissons, soit 59 remises pour le
 fournisseur concerné le 15 octobre. La requête mensuelle transforme les compteurs
 par produit en lignes puis calcule leurs sommes. Une seconde requête regroupe
 les événements conservés par film d'origine, pour illustrer une nouvelle lecture
@@ -563,9 +582,9 @@ et ne constituent pas un jeu de données permettant d'exécuter dix questions.
 | 5. Transfert facultatif | `TransfererBillet` pour le premier billet | `client_40` devient titulaire de `bil_981_1` ; l'acheteur reste `client_12` | Aucun événement de transfert prévu |
 | 6. Entrée | `ValiderBillet` à 19:53 pour le second billet, avec justificatif | Réservations valide `bil_981_2` de `client_12` | `billet.valide` crée la tentative en attente et prépare les notifications du quiz |
 | 7. Générique | `ConfirmerPresence` à 22:41 avec le code de séance | Quiz et coupons fixe `demarrage_avant` au 8 octobre à 00:41 | `quiz.ouvert` informe l'application du spectateur |
-| 8. Participation | `DemarrerQuiz` à 23:05, puis `RepondreQuestion` avec un `choix_id` | Dix questions figées ; `finir_avant` vaut 23:07:30 ; la tentative termine à 23:07:20 avec un score de 9/10 dans l'exemple | `quiz.termine` déclenche le tirage d'attribution d'un coupon |
-| 9. Coupon de quiz | Tirage favorable pour le score de 9/10, dans cet exemple | Quiz et coupons crée `cpn_55`, un popcorn moyen valable trente jours | `coupon.emis` permet son affichage ; ce gain n'est pas garanti pour tous les scores de 9/10 |
-| 10. Comptoir | `UtiliserCoupon` le 15 octobre pour `cpn_55` | Le coupon de popcorn passe à utilisé, avec sa date | `coupon.utilise` ajoute une remise de popcorn aux consommations du fournisseur |
+| 8. Participation | `DemarrerQuiz` à 23:05, puis `RepondreQuestion` avec un `choix_id` | Dix questions figées ; `finir_avant` vaut 23:07:30 ; la tentative termine à 23:07:20 avec un score de 9/10 dans l'exemple | `quiz.termine` déclenche le tirage unique d'attribution d'un coupon |
+| 9. Coupon de quiz | Tirage favorable pour le score de 9/10, dans cet exemple | Quiz et coupons enregistre `recompense_traitee = true`, lie `coupon_id = cpn_55` et crée ce coupon valable trente jours pour un popcorn ou une boisson à une visite ultérieure | `coupon.emis` permet son affichage ; un rejeu ne refait pas le tirage et ne crée pas un autre coupon |
+| 10. Prochaine visite | `UtiliserCoupon` le 15 octobre pour `cpn_55`, avec le choix `popcorn_moyen` | Le coupon passe à utilisé ; son type, son fournisseur et sa date d'utilisation sont fixés | `coupon.utilise` ajoute une remise de popcorn aux consommations du fournisseur ; un choix boisson aurait compté une boisson |
 
 Le coupon du scénario provient uniquement du résultat du quiz. Une utilisation
 contribue pour une unité au total journalier ; les 59 unités de l'exemple

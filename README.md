@@ -2,7 +2,7 @@
 
 Projet NoSQL : l'application d'un cinéma fictif, découpée en services. Le spectateur
 réserve sa séance, puis répond à un quiz sur le film qu'il vient de voir pour tenter
-de gagner un coupon à utiliser au comptoir de confiserie.
+de gagner un coupon pour un popcorn ou une boisson lors d'une prochaine visite.
 
 Chaque service possède ses propres données et sa propre base NoSQL. Les services
 communiquent uniquement par événements, et gardent des réplicas des données dont
@@ -15,8 +15,8 @@ ils ont besoin pour rester autonomes.
 3. **Entrée** : un agent scanne chaque billet et vérifie les justificatifs de tarif réduit.
 4. **Générique** : le titulaire scanne le QR code de sa séance pendant le générique ; il dispose de 2 heures pour démarrer.
 5. **Quiz** : 10 questions, 15 secondes chacune, au plus 150 secondes après le démarrage ; les choix mélangés gardent leurs identifiants et leur ordre après reconnexion.
-6. **Récompense** : selon son score, le spectateur peut gagner un coupon.
-7. **Comptoir** : le coupon est utilisé une seule fois ; le fournisseur reçoit les totaux.
+6. **Récompense** : une seule décision par quiz ; aucun coupon de 0 à 7/10, un tirage à 50 % pour 8 ou 9/10, coupon garanti à 10/10.
+7. **Prochaine visite** : le client choisit un popcorn ou une boisson au comptoir ; le coupon est valable 30 jours et utilisable une seule fois ; le fournisseur reçoit le total du produit réellement remis.
 
 ## Les services
 

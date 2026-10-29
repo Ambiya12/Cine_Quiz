@@ -1,7 +1,7 @@
 {
   "agregat": "Tentative",
   "service": "quiz",
-  "stockage": "un hash Redis tentative:{billet_id} ; une tentative en_cours n'est jamais supprimée par expiration ; son nettoyage intervient après le traitement de sa fin ou de son annulation",
+  "stockage": "un hash Redis tentative:{billet_id} ; une tentative en_cours n'est jamais supprimée par expiration ; après sa fin, le détail peut être nettoyé mais recompense_traitee et coupon_id restent conservés pour les rejeux",
   "regles": [
     "une seule tentative par billet validé",
     "seul le demandeur authentifié correspondant au client_id de la tentative peut confirmer sa présence, démarrer et répondre",
@@ -17,7 +17,10 @@
     "les questions sélectionnées et l'ordre mélangé de leurs choix sont conservés dans questions_figees et restent identiques après reconnexion, même si la banque est modifiée",
     "une réponse désigne un choix_id stable, jamais sa position à l'écran ; une question reçoit au plus une réponse",
     "la correction bonne_reponse_id reste côté serveur et n'est jamais envoyée au téléphone ; seules la question courante et ses choix publics sont transmis",
-    "répéter un scan, un démarrage ou une réponse ne renouvelle aucun délai et ne modifie pas une réponse déjà enregistrée"
+    "répéter un scan, un démarrage ou une réponse ne renouvelle aucun délai et ne modifie pas une réponse déjà enregistrée",
+    "une tentative terminee reçoit une seule décision de récompense : aucun coupon de 0 à 7, un tirage à 50 % pour 8 ou 9, un coupon garanti pour 10",
+    "recompense_traitee vaut false avant la décision, puis true même si aucun coupon n'est gagné ; coupon_id vaut null en l'absence de coupon",
+    "le contrôle et l'enregistrement de la décision, avec la création du coupon si gagné, forment une seule opération atomique ; un rejeu restitue cette décision sans autre tirage ni autre coupon"
   ],
   "references": ["billet_id", "client_id", "film_id", "seance_id"],
   "exemple": {
@@ -52,6 +55,8 @@
       "q7": { "choix_id": "c", "correcte": true },
       "q12": { "choix_id": null, "correcte": false }
     },
-    "score": 9
+    "score": 9,
+    "recompense_traitee": true,
+    "coupon_id": "cpn_55"
   }
 }

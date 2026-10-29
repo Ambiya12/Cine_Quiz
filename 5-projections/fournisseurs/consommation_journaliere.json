@@ -18,7 +18,7 @@
     "_id": "fourn_popcorn_1|2026-10-15",
     "fournisseur_id": "fourn_popcorn_1",
     "date": "2026-10-15",
-    "produits": { "popcorn_moyen": 42, "menu": 17 },
+    "produits": { "popcorn_moyen": 42, "boisson": 17 },
     "total": 59
   }
 }

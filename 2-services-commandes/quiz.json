@@ -62,14 +62,16 @@
     {
       "nom": "UtiliserCoupon",
       "acteur": "agent",
-      "donnees": { "coupon_id": "cpn_55", "jeton_qr": "e94d..." },
+      "donnees": { "coupon_id": "cpn_55", "jeton_qr": "e94d...", "type_produit": "popcorn_moyen" },
       "verifications": [
         "le coupon existe",
         "le jeton correspond au coupon",
+        "le type_produit choisi est présent dans produits_eligibles : popcorn_moyen ou boisson",
+        "le client revient lors d'une visite ultérieure à celle du quiz",
         "il n'a pas déjà été utilisé",
         "il n'est pas expiré"
       ],
-      "effet": "le coupon est marqué comme utilisé, avec la date et l'heure",
+      "effet": "marque atomiquement le coupon comme utilisé avec la date et l'heure ; fixe type au type_produit choisi et fournisseur_id à celui configuré pour ce produit ; autorise la remise d'un seul produit et publie coupon.utilise une seule fois",
       "evenement": "coupon.utilise"
     }
   ]

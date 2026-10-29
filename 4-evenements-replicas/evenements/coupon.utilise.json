@@ -8,6 +8,8 @@
     "type_objet": "Coupon",
     "id_objet": "cpn_55",
     "modifications": [
+      { "donnee": "type", "nouvelle_valeur": "popcorn_moyen" },
+      { "donnee": "fournisseur_id", "nouvelle_valeur": "fourn_popcorn_1" },
       { "donnee": "utilise", "nouvelle_valeur": true },
       { "donnee": "utilise_le", "nouvelle_valeur": "2026-10-15T19:40:00Z" }
     ],
@@ -18,6 +20,6 @@
     }
   },
   "reactions": [
-    { "service": "fournisseurs", "effet": "conserve l'événement tel quel, puis ajoute 1 au compteur popcorn_moyen du fournisseur pour le 15 octobre" }
+    { "service": "fournisseurs", "effet": "conserve l'événement tel quel, puis ajoute 1 au compteur du produit réellement choisi, ici popcorn_moyen, pour le fournisseur et le jour indiqués" }
   ]
 }
