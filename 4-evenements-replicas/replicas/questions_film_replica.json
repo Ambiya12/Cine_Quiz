@@ -4,14 +4,19 @@
   "source": "catalogue : agrégat Film (titre et questions)",
   "cree_par": "film.cree",
   "mis_a_jour_par": ["film.modifie"],
-  "usage": [
-    "tirer 10 questions au hasard au démarrage d'un quiz",
-    "corriger les réponses"
-  ],
-  "stockage": "un hash Redis film:{film_id} pour le titre, un hash Redis questions:{film_id} pour les questions",
+  "stockage": "un hash Redis quiz:film:{film_id} pour le titre, un hash Redis quiz:questions:{film_id} avec une question par champ",
   "lectures": [
-    { "requete": "Charger le titre du film pour le quiz", "cle": "film:{film_id}", "type": "hash" },
-    { "requete": "Charger la banque de questions locale", "cle": "questions:{film_id}", "type": "hash ; chaque champ est un question_id et sa valeur est la question sérialisée en JSON" }
+    { "requete": "Tirer 10 questions au hasard au démarrage d'un quiz", "cle": "quiz:questions:{film_id}", "commande": "HRANDFIELD quiz:questions:film_dune2 10" },
+    { "requete": "Corriger une réponse", "cle": "quiz:questions:{film_id}", "commande": "HGET quiz:questions:film_dune2 q1" },
+    { "requete": "Afficher le titre du film dans une notification", "cle": "quiz:film:{film_id}", "commande": "HGET quiz:film:film_dune2 titre" }
+  ],
+  "regles": [
+    "seul le Catalogue modifie les questions ; le réplica ne fait que les recopier à partir des événements",
+    "le réplica applique l'opération reçue : remplacer toute la liste questions, ou ajouter une seule question",
+    "chaque choix garde le choix_id défini par le Catalogue (a, b, c ou d), indépendant de sa position ; bonne_reponse_id désigne le choix correct",
+    "la bonne réponse reste sur le serveur et n'est jamais envoyée au téléphone",
+    "une tentative démarrée garde ses questions et l'ordre de ses choix, même si la banque évolue ensuite",
+    "chaque id_evenement n'est appliqué qu'une fois : il est enregistré dans quiz:evenements_traites, dans le même script Lua que la modification"
   ],
   "exemple": {
     "film_id": "film_dune2",
