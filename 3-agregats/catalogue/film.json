@@ -7,7 +7,9 @@
   ],
   "regles": [
     "les questions n'existent que pour ce film et s'éditent avec lui",
+    "duree_min et debut_generique_min sont des entiers strictement positifs, en minutes",
     "le début du générique est inférieur à la durée du film",
+    "duree_min et debut_generique_min ne changent pas tant qu'une séance programmee est à venir pour ce film",
     "chaque question a exactement 4 choix et une seule bonne réponse",
     "chaque choix possède un choix_id unique dans sa question et indépendant de sa position ; bonne_reponse_id désigne le choix correct",
     "un film retiré de l'affiche est conservé, jamais supprimé"

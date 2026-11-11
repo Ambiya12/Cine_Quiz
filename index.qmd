@@ -222,11 +222,14 @@ dans des bases exécutables.
 | Charger une salle et son plan | `salles` | `salle_id`, index unique |
 | Charger une séance | `seances` | `seance_id`, index unique |
 | Lister les séances d'un film entre deux dates | `seances` | Index composé `(film_id, debut)` |
-| Rechercher les séances qui occupent une salle sur un créneau | `seances` | Index `(salle_id, debut)` ; filtrer `debut < fin_demandee` et `fin > debut_demande`, en excluant les séances annulées |
+| Rechercher les séances qui occupent une salle sur un créneau | `seances` | Index `(salle_id, debut)` ; filtrer `statut = programmee`, `debut < fin_occupation_demandee` et `fin_occupation > debut_demande` |
 
 Les réponses publiques sur les films excluent la correction des questions.
-L'index de salle aide la recherche de conflits ; le contrôle des créations
-concurrentes reste à réaliser.
+L'index de salle aide la recherche de conflits. Pour les créations concurrentes,
+une transaction MongoDB incrémente `version_planning` de la salle, recherche les
+chevauchements puis insère la séance : deux créations simultanées dans la même
+salle écrivent le même document, l'une échoue en conflit d'écriture et est
+rejouée, et voit alors la séance de l'autre.
 
 ### Réservations — Cassandra
 
@@ -354,8 +357,14 @@ Mélanger l'affichage ne change pas ces identifiants.
 **Salle** porte le plan, la capacité et les places PMR. **Séance** référence un
 film et une salle, avec ses horaires, sa version, ses tarifs et son statut.
 Les séparer permet à plusieurs séances de référencer un même film et une même salle.
-La vérification des conflits de salle mobilise plusieurs séances ; son mécanisme
-de contrôle reste à définir.
+Une séance occupe sa salle de `debut` à `fin_occupation`, soit la fin du film
+plus 15 minutes de nettoyage ; deux séances programmées d'une même salle ne se
+chevauchent pas. Le conflit mobilise plusieurs séances : il est contrôlé dans une
+transaction qui écrit aussi le document de la salle (`version_planning`), ce qui
+sérialise les créations concurrentes dans cette salle. Seuls les tarifs d'une
+séance sont modifiables, avant son début ; film, salle, début et version sont
+figés car les billets vendus en dépendent. Pour les changer, le gérant annule la
+séance et en crée une nouvelle.
 
 ::: {.callout-note collapse="true"}
 ## Agrégat Film

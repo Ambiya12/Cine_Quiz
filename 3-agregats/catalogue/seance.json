@@ -5,12 +5,16 @@
   "lectures": [
     { "requete": "Charger une séance", "collection": "seances", "cle": "seance_id, index unique" },
     { "requete": "Lister les séances d'un film dans une plage de dates", "collection": "seances", "cle": "index composé film_id, debut" },
-    { "requete": "Trouver les séances non annulées qui occupent une salle sur un créneau", "collection": "seances", "cle": "index composé salle_id, debut ; filtrer debut < fin_demandee et fin > debut_demande" }
+    { "requete": "Trouver les séances programmees qui occupent une salle sur un créneau", "collection": "seances", "cle": "index composé salle_id, debut ; filtrer statut = programmee, debut < fin_occupation_demandee et fin_occupation > debut_demande" }
   ],
   "regles": [
-    "l'heure du générique et l'heure de fin sont calculées à partir du film, jamais saisies",
-    "deux séances ne peuvent pas occuper la même salle en même temps",
-    "tous les tarifs sont positifs",
+    "debut_generique = debut + debut_generique_min du film ; fin = debut + duree_min du film ; fin_occupation = fin + 15 minutes de nettoyage ; ces heures sont calculées, jamais saisies",
+    "deux séances programmees d'une même salle ne se chevauchent pas : leurs créneaux [debut, fin_occupation[ sont disjoints ; une séance peut commencer exactement à la fin_occupation de la précédente",
+    "la recherche de chevauchement et l'insertion se font dans une transaction MongoDB qui incrémente aussi version_planning de la salle ; deux créations concurrentes dans la même salle entrent en conflit d'écriture et la seconde est rejouée",
+    "une séance annulee n'occupe plus la salle",
+    "la grille contient exactement les tarifs plein, reduit et enfant, strictement positifs, en euros avec au plus deux décimales (Decimal128), et enfant ≤ reduit ≤ plein",
+    "version vaut VF ou VOSTFR",
+    "seuls les tarifs sont modifiables, avant le début de la séance ; film, salle, début et version sont figés, car les billets vendus en dépendent ; pour les changer, annuler et recréer la séance",
     "une séance annulée ne peut plus être modifiée",
     "le cinéma peut annuler avant la fin prévue de la séance, y compris pendant celle-ci ; après cette heure, une première annulation est refusée",
     "répéter une annulation retourne déjà annulée sans nouvel événement"
@@ -23,6 +27,7 @@
     "debut": "2026-10-07T20:00:00Z",
     "debut_generique": "2026-10-07T22:38:00Z",
     "fin": "2026-10-07T22:46:00Z",
+    "fin_occupation": "2026-10-07T23:01:00Z",
     "version": "VF",
     "tarifs": { "plein": 11.50, "reduit": 9.00, "enfant": 7.00 },
     "statut": "programmee"

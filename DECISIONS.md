@@ -29,6 +29,10 @@ des profils reste hors périmètre.
 | Conservation Redis | Nettoyage des coupons et historique des récompeneses obtenues par les spectateurs et index client durables ; AOF sur disque conservé et sans éviction automatique pour Redis Quiz |Validé par l'équipe |
 | Coupons | Valables 30 jours, usage unique, rattachés au client et à leur tentative d'origine ; produit choisi au comptoir à une visite ultérieure ; protégés par un jeton secret dans le QR code | Validée par l'équipe  |
 | Paiement et authentification | Hors périmètre, assurés par des prestataires simulés | Validée par l'équipe|
+| Occupation d'une salle | Une séance occupe sa salle de `debut` à `fin_occupation` (fin du film + 15 min de nettoyage) ; contrôle des chevauchements dans une transaction MongoDB qui incrémente `version_planning` de la salle, pour sérialiser les créations concurrentes | |
+| Modification d'une séance | Seuls les tarifs sont modifiables, avant le début ; film, salle, début et version figés ; sinon annuler et recréer | |
+| Grille tarifaire | Plein, réduit et enfant obligatoires, positifs, deux décimales au plus, enfant ≤ réduit ≤ plein | |
+| Plan de salle et durée du film | Plan figé après création de la salle ; durée et générique d'un film figés tant qu'une séance programmée est à venir | |
 | Identifiants | Préfixe en minuscules et tiret bas (`film_`, `res_`, `cpn_`…) ; exemples lisibles, générés automatiquement en réalité | |
 | Projections | Fournisseurs et Recherche (avec ElasticSearch) | |
 

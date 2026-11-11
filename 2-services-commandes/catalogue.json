@@ -13,7 +13,10 @@
         "debut_generique_min": 158,
         "casting": [{ "acteur": "Timothée Chalamet", "role": "Paul Atreides" }]
       },
-      "verifications": ["le début du générique est inférieur à la durée du film"],
+      "verifications": [
+        "duree_min est un entier strictement positif, en minutes",
+        "debut_generique_min est un entier strictement positif, inférieur à duree_min"
+      ],
       "effet": "crée le film, à l'affiche, sans questions",
       "evenement": "film.cree"
     },
@@ -21,8 +24,13 @@
       "nom": "ModifierFilm",
       "acteur": "gerant",
       "donnees": { "film_id": "film_dune2", "synopsis": "..." },
-      "verifications": ["le film existe"],
-      "effet": "met à jour les informations du film",
+      "verifications": [
+        "le film existe",
+        "seuls titre, synopsis, genres et casting sont modifiables à tout moment",
+        "duree_min et debut_generique_min ne sont modifiables que si aucune séance programmee n'est à venir pour ce film, car les horaires des séances en dépendent",
+        "après modification, debut_generique_min reste inférieur à duree_min"
+      ],
+      "effet": "met à jour les informations du film ; les horaires des séances déjà programmées ne sont jamais recalculés",
       "evenement": "film.modifie"
     },
     {
@@ -63,8 +71,12 @@
         "capacite": 300,
         "plan": { "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"], "places_par_rangee": 20, "places_pmr": ["A1", "A2"] }
       },
-      "verifications": ["la capacité correspond au nombre de places du plan"],
-      "effet": "crée la salle",
+      "verifications": [
+        "les rangées sont distinctes et places_par_rangee est un entier strictement positif",
+        "la capacité est égale au nombre de rangées multiplié par places_par_rangee (ici 15 × 20 = 300)",
+        "chaque place PMR est distincte et existe dans le plan : une rangée du plan suivie d'un numéro entre 1 et places_par_rangee"
+      ],
+      "effet": "crée la salle avec version_planning à 0 ; son plan n'est plus modifiable ensuite, car il est recopié dans les réplicas de séance",
       "evenement": null
     },
     {
@@ -79,21 +91,38 @@
       },
       "verifications": [
         "le film est à l'affiche et possède au moins 10 questions",
-        "la salle est libre sur ce créneau",
-        "tous les tarifs sont positifs"
+        "la salle existe",
+        "le début est dans le futur",
+        "version vaut VF ou VOSTFR",
+        "la grille contient exactement les tarifs plein, reduit et enfant, strictement positifs, avec au plus deux décimales",
+        "enfant ≤ reduit ≤ plein",
+        "la salle est libre sur le créneau d'occupation [debut, fin + 15 minutes de nettoyage[ : aucune séance programmee de la salle ne le chevauche"
       ],
-      "effet": "crée la séance ; l'heure du générique et l'heure de fin sont calculées à partir du film",
+      "controle_concurrence": "dans une seule transaction MongoDB : incrémenter version_planning de la salle, rechercher les chevauchements, puis insérer la séance ; deux créations simultanées dans la même salle écrivent le même document salle, l'une échoue en conflit d'écriture et est rejouée, et voit alors la séance de l'autre",
+      "effet": "crée la séance au statut programmee ; debut_generique, fin et fin_occupation sont calculées à partir du film et du temps de nettoyage",
       "evenement": "seance.creee"
     },
     {
       "nom": "ModifierSeance",
       "acteur": "gerant",
       "donnees": { "seance_id": "seance_42", "tarifs": { "reduit": 8.50 } },
+      "champs_modifiables": ["tarifs"],
+      "champs_non_modifiables": {
+        "film_id": "les billets, le quiz et sa banque de questions dépendent du film",
+        "salle_id": "les places vendues dépendent du plan de la salle",
+        "debut": "les spectateurs ont acheté un horaire ; le générique, la fin et l'occupation de la salle en dépendent",
+        "version": "les spectateurs ont acheté une version (VF ou VOSTFR)",
+        "debut_generique, fin, fin_occupation": "calculés, jamais saisis",
+        "statut": "change uniquement par AnnulerSeance"
+      },
       "verifications": [
         "la séance est au statut programmee (elle n'est pas annulée)",
-        "la séance n'a pas encore commencé"
+        "la séance n'a pas encore commencé",
+        "seul le champ tarifs est fourni ; tout autre champ est refusé",
+        "chaque tarif fourni est plein, reduit ou enfant, strictement positif, avec au plus deux décimales",
+        "après fusion avec la grille existante, enfant ≤ reduit ≤ plein"
       ],
-      "effet": "met à jour la séance ; les billets déjà vendus gardent leur prix",
+      "effet": "fusionne les tarifs fournis dans la grille ; les billets déjà vendus gardent leur prix ; pour changer d'horaire, de salle, de film ou de version, le gérant annule la séance et en crée une nouvelle",
       "evenement": "seance.modifiee"
     },
     {
@@ -101,7 +130,7 @@
       "acteur": "gerant",
       "donnees": { "seance_id": "seance_42", "motif": "panne du projecteur" },
       "verifications": ["pour une première annulation, l'heure de fin prévue de la séance n'est pas atteinte"],
-      "effet": "la séance passe au statut annulee ; ses réservations encore confirmées sont remboursées par Réservations et ses quiz non terminés sont annulés par Quiz à réception de l'événement",
+      "effet": "la séance passe au statut annulee et libère son créneau dans la salle ; ses réservations encore confirmées sont remboursées par Réservations et ses quiz non terminés sont annulés par Quiz à réception de l'événement",
       "repetition": "après contrôle du rôle de gérant, une séance déjà annulée retourne déjà annulée, sans nouvel événement ni autre remboursement, même après l'heure de fin prévue",
       "evenement": "seance.annulee"
     }

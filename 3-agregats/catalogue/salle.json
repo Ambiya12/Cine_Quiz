@@ -6,8 +6,12 @@
     { "requete": "Charger une salle et son plan", "collection": "salles", "cle": "salle_id, index unique" }
   ],
   "regles": [
-    "la capacité correspond au nombre de places du plan",
-    "les places PMR font partie du plan"
+    "les rangées sont distinctes ; chaque rangée compte places_par_rangee places numérotées de 1 à places_par_rangee",
+    "une place s'écrit rangée puis numéro, par exemple F7",
+    "la capacité est égale au nombre de rangées multiplié par places_par_rangee",
+    "les places PMR sont distinctes et font partie du plan",
+    "le plan n'est plus modifiable après la création, car il est recopié dans les réplicas de séance de Réservations",
+    "version_planning est incrémenté dans la transaction de chaque création de séance de la salle, pour sérialiser les créations concurrentes"
   ],
   "references": [],
   "exemple": {
@@ -18,6 +22,7 @@
       "rangees": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O"],
       "places_par_rangee": 20,
       "places_pmr": ["A1", "A2"]
-    }
+    },
+    "version_planning": 12
   }
 }
