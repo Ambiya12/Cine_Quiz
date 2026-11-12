@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0700",
+    "version_schema": 1,
+    "sequence_objet": 2,
     "type": "quiz.termine",
     "date": "2026-10-07T23:07:20Z",
     "emetteur": "quiz",
@@ -9,7 +11,8 @@
     "id_objet": "bil_981_2",
     "modifications": [
       { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "terminee" },
-      { "donnee": "score", "operation": "remplacer", "nouvelle_valeur": 9 }
+      { "donnee": "score", "operation": "remplacer", "nouvelle_valeur": 9 },
+      { "donnee": "termine_le", "operation": "remplacer", "nouvelle_valeur": "2026-10-07T23:07:20Z" }
     ],
     "contexte": {
       "client_id": "client_12",
@@ -28,7 +31,9 @@
     "le score doit être un entier compris entre 0 et 10 ; une tentative annulee ne donne aucun coupon",
     "la décision est identifiée par id_objet, l'identifiant de la tentative qui correspond à billet_id",
     "si recompense_traitee est déjà true, restituer la décision enregistrée sans nouveau coupon ni nouvel événement coupon.emis",
-    "sinon, enregistrer atomiquement recompense_traitee à true et coupon_id, même si le résultat est perdant ; créer le coupon dans la même opération si gagné",
-    "une tentative produit au plus un coupon, lié par tentative_id ; cette règle s'applique aussi à deux réceptions simultanées"
+    "sinon, dans un même script Lua, enregistrer recompense_traitee à true et coupon_id, même si le score est insuffisant ; à partir de 8/10, créer le coupon, mettre à jour son index et l'historique durable du titulaire, et enregistrer coupon.emis en attente de publication",
+    "une tentative produit au plus un coupon, lié par tentative_id ; cette règle s'applique aussi à deux réceptions simultanées et après nettoyage du coupon, grâce à la décision durable conservée pour cette tentative",
+    "le passage initial à terminee, score, termine_le et quiz.termine en attente sont enregistrés ensemble côté Redis, même si la fin est déclenchée par une échéance serveur ; les identifiants et délais ne changent pas après redémarrage",
+    "le récepteur interne quiz vérifie l'état et le score conservés côté serveur ; il n'attribue jamais une récompense à partir d'un score fourni par le téléphone"
   ]
 }

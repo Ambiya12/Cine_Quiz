@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0090",
+    "version_schema": 1,
+    "sequence_objet": 2,
     "type": "seance.annulee",
     "date": "2026-10-09T17:30:00Z",
     "emetteur": "catalogue",
@@ -10,12 +12,36 @@
     "modifications": [
       { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "annulee" }
     ],
-    "contexte": { "motif": "panne du projecteur" }
+    "contexte": {
+      "film_id": "film_dune2",
+      "motif": "panne du projecteur"
+    }
   },
   "reactions": [
-    { "service": "reservations", "effet": "marque la séance annulée dans son réplica ; annule et rembourse une seule fois les réservations encore confirmee, même après une entrée ; conserve montant, les paiements initiaux et valide_le ; publie reservation.annulee pour chaque nouvelle annulation ; ignore les réservations déjà annulées" },
-    { "service": "quiz", "agregat": "Tentative", "effet": "mémorise l'annulation de la séance et passe les tentatives en_attente_presence, ouverte ou en_cours au statut annulee ; arrête leurs questions et notifications ; conserve les tentatives terminee et les coupons déjà émis ; refuse toute nouvelle tentative pour cette séance" },
-    { "service": "recherche", "effet": "retire la séance des résultats" }
+    { "service": "reservations", "effet": "ferme d'abord les confirmations et validations locales pour cette séance ; annule et rembourse une seule fois chaque réservation encore confirmee, même après une entrée ; conserve montant, les paiements initiaux et valide_le ; enregistre reservation.annulee en attente pour chaque nouvelle annulation ; reprend le travail restant après interruption" },
+    { "service": "quiz", "agregat": "Tentative", "effet": "mémorise d'abord l'annulation dans quiz:seances_annulees ; passe les tentatives programmee, ouverte ou en_cours à annulee, retire leurs échéances et arrête les notifications devenues inutiles ; conserve les tentatives terminee, leurs récompenses même en attente de traitement et les coupons déjà émis ; refuse toute nouvelle tentative pour cette séance" },
+    { "service": "recherche", "effet": "retire la séance du document identifié par contexte.film_id, même si la séance a déjà disparu ; ne publie aucun événement métier" }
+  ],
+  "traitement_reprenable": {
+    "reservations": [
+      "dans une transaction MongoDB, marquer le réplica de séance annulee et créer un suivi de traitement unique par id_evenement, au statut en_cours ; ne pas encore marquer l'événement comme traité",
+      "toute confirmation ou validation locale doit contrôler l'état et écrire le même document de séance dans sa transaction ; elle entre ainsi en conflit avec la fermeture : une confirmation antérieure est incluse dans le travail, une confirmation postérieure est refusée",
+      "une fois la fermeture enregistrée, retrouver les reservation_id actifs par billets_par_seance ; pour chaque réservation, enregistrer dans une transaction son annulation conditionnelle, son remboursement unique, la libération des seules places qui lui appartiennent, les copies de lecture, le message en attente et la progression du suivi",
+      "après une interruption, reprendre le même suivi et rechercher les réservations encore actives ; une réservation déjà annulée ne reçoit ni remboursement ni événement supplémentaire, y compris après une annulation acheteur",
+      "quand il ne reste plus de réservation active, terminer le suivi, enregistrer id_evenement comme traité et la séquence examinée ; seulement ensuite acquitter la copie Redis ; les publications encore en attente restent prises en charge séparément"
+    ],
+    "quiz": [
+      "dans un script Lua, ajouter la séance à quiz:seances_annulees et créer un suivi durable unique par id_evenement ; la création, l'ouverture, le démarrage, la réponse et les échéances d'une tentative contrôlent cette même annulation dans leur script",
+      "parcourir quiz:tentatives_par_seance:{seance_id} par lots ; annuler seulement programmee, ouverte ou en_cours, retirer les échéances et mémoriser la progression avec ces changements ; les tentatives terminee, expiree et annulee restent inchangées",
+      "une reprise continue le suivi existant sans supprimer le marqueur de séance annulée ; quand tous les lots sont traités, enregistrer id_evenement et la séquence, puis acquitter le message ; le suivi en_cours n'est jamais confondu avec un traitement terminé"
+    ]
+  },
+  "regles": [
+    "le Catalogue contrôle le droit du gérant et l'heure limite au moment de la décision ; le statut annulee et ce message en attente sont enregistrés dans la même transaction MongoDB",
+    "les récepteurs appliquent une annulation valide même si sa livraison ou sa reprise intervient après la fin prévue de la séance ; la date de réception n'est pas une nouvelle condition d'annulation",
+    "les flux de Catalogue et Réservations n'ont pas d'ordre global ; dans Quiz, le marqueur d'annulation et la création d'une tentative se contrôlent atomiquement, pour qu'un billet.valide tardif ne rouvre pas la séance",
+    "le récepteur conserve le marqueur d'annulation aussi longtemps que billet.valide peut être rejoué ; recevoir une nouvelle copie pendant en_cours reprend le travail, sans l'acquitter comme déjà terminé",
+    "les effets entre services restent asynchrones ; chaque service ferme ses traitements lorsqu'il reçoit l'annulation, sans promettre une annulation instantanée dans toutes les bases"
   ],
   "repetition": "une réception répétée ne crée aucun autre remboursement ni nouvel événement de réservation ; les quiz déjà annulés ou terminés et les coupons émis restent inchangés"
 }

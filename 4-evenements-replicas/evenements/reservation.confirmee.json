@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0300",
+    "version_schema": 1,
+    "sequence_objet": 1,
     "type": "reservation.confirmee",
     "date": "2026-10-05T14:02:00Z",
     "emetteur": "reservations",
@@ -10,6 +12,7 @@
     "donnees": {
       "acheteur_id": "client_12",
       "seance_id": "seance_42",
+      "statut": "confirmee",
       "montant": 20.5,
       "billets": [
         {
@@ -17,7 +20,7 @@
           "place": "F7",
           "tarif": "plein",
           "prix": 11.5,
-          "titulaire_id": "client_12",
+          "titulaire_id": "client_40",
           "statut": "payee"
         },
         {
@@ -35,5 +38,11 @@
       "debut_seance": "2026-10-07T20:00:00Z"
     }
   },
-  "reactions": []
+  "reactions": [],
+  "regles": [
+    "l'événement est enregistré avec la réservation et l'attribution de toutes ses places dans une même transaction MongoDB ; une attribution partielle ne publie aucune confirmation",
+    "les titulaires sont fixés dès l'achat ; ici client_40 détient le premier billet et client_12 le second, sans transfert ultérieur",
+    "une même demande ou un même paiement déjà confirmé restitue la réservation existante sans nouvel événement ; les jetons QR restent dans Réservations",
+    "recepteurs reste vide dans le périmètre actuel ; le message est conservé dans le journal de Réservations"
+  ]
 }

@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0002",
+    "version_schema": 1,
+    "sequence_objet": 2,
     "type": "film.modifie",
     "date": "2026-09-28T09:05:00Z",
     "emetteur": "catalogue",
@@ -30,7 +32,7 @@
   "reactions": [
     {
       "service": "quiz",
-      "effet": "remplace la banque de questions du réplica par la liste complète reçue, ici composée de q1"
+      "effet": "remplace la banque de questions du réplica par la liste complète reçue, ici composée de q1 ; conserve les questions déjà figées des tentatives en cours ; enregistre id_evenement et la progression de séquence avec la mise à jour, dans un même script Lua"
     },
     {
       "service": "recherche",

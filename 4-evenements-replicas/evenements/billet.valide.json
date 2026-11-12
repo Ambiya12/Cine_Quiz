@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0450",
+    "version_schema": 1,
+    "sequence_objet": 3,
     "type": "billet.valide",
     "date": "2026-10-07T19:53:00Z",
     "emetteur": "reservations",
@@ -41,21 +43,26 @@
       "seance_id": "seance_42",
       "film_id": "film_dune2",
       "version": "VF",
-      "debut_generique": "2026-10-07T22:38:00Z",
       "fin_seance": "2026-10-07T22:46:00Z"
     }
   },
-  "regle_reception": "si la séance est connue comme annulée dans Quiz, ignorer cet événement : ne créer aucune tentative et n'envoyer aucune notification",
+  "regle_reception": "appliquer l'ordre et la déduplication du contrat commun ; utiliser contexte.billet_id pour le billet nouvellement validé, sans recréer une tentative pour chaque billet de la liste ; si la séance est connue comme annulée dans Quiz, ne créer aucune tentative et n'envoyer aucune notification",
   "reactions": [
     {
       "service": "quiz",
       "agregat": "Tentative",
-      "effet": "crée la tentative au statut en_attente_presence et programme la notification du début du générique"
+      "effet": "dans un même script Lua, vérifier quiz:seances_annulees, créer au plus une tentative programmee pour contexte.billet_id, enregistrer le titulaire et fin_seance, fixer demarrage_possible_jusqu_au à fin_seance plus 2 heures et ajouter l'ouverture à quiz:echeances ; enregistrer id_evenement avec ces changements ; une livraison tardive garde les horaires initiaux et ne crée pas une nouvelle fenêtre"
     },
     {
       "service": "quiz",
       "agregat": null,
-      "effet": "envoie la notification « Bon film ! Reste jusqu'au générique pour débloquer ton quiz »"
+      "effet": "en livraison normale, enregistrer la visite du titulaire à la date locale de valide_le dans quiz:visites:{date}, selon Europe/Paris ; la clé expire à minuit 2 jours après cette date, sans prolonger sa durée lors d'un rejeu ; préparer avec les autres changements la notification « Ton quiz sera accessible à la fin de la séance avec le QR code du billet », identifiée par id_evenement, sans la renvoyer après une réception répétée"
     }
+  ],
+  "regles": [
+    "les réactions locales de Quiz, leur suivi et les notifications en attente sont enregistrés ensemble dans un même script Lua ; un marqueur de traitement ne précède jamais la sauvegarde de ses effets",
+    "la validation conditionnelle du billet et son événement en attente sont enregistrés dans une même transaction MongoDB ; un second scan ne publie pas un deuxième billet.valide",
+    "la première validation de bil_981_1 a produit la séquence 2 de res_981, absente de cet extrait ; le destinataire la récupère dans le journal avant la séquence 3 si nécessaire",
+    "si la livraison intervient après fin_seance, le worker traite immédiatement l'échéance d'ouverture ; après demarrage_possible_jusqu_au, la tentative devient expiree sans notification devenue inutile ; les dates de visite historiques ne créent pas un droit de visite pour aujourd'hui"
   ]
 }

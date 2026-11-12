@@ -2,10 +2,12 @@
   "format": "événement CinéQuiz",
   "champs": {
     "id_evenement": "identifiant unique de l'événement (evt_...)",
+    "version_schema": "entier positif ; 1 pour les contrats actuels ; change lorsque le format du message devient incompatible",
+    "sequence_objet": "entier positif, incrémenté pour chaque événement publié du même (emetteur, type_objet, id_objet), à partir de 1 ; ce n'est ni la version de l'agrégat ni l'identifiant Redis du message",
     "type": "le fait qui s'est produit, au passé : objet.verbe",
-    "date": "date et heure du fait, au format ISO 8601",
+    "date": "date et heure du fait, au format ISO 8601 en UTC ; ne change pas lors d'une nouvelle livraison",
     "emetteur": "le service propriétaire de l'agrégat concerné",
-    "recepteurs": "les services qui écoutent cet événement ; liste vide si aucun consommateur n'est défini dans le périmètre actuel",
+    "recepteurs": "destinataires métier du message ; une copie est distribuée à chacun ; liste vide si aucun consommateur n'est défini ; ce champ ne constitue pas un contrôle d'accès",
     "type_objet": "l'agrégat concerné",
     "id_objet": "l'identifiant de cet agrégat",
     "donnees": "pour une création : les valeurs de l'agrégat utiles aux récepteurs",
@@ -19,12 +21,52 @@
   "regles": [
     "un événement décrit un fait métier déjà accompli, jamais un ordre",
     "seul le service propriétaire de l'agrégat peut émettre ses événements",
-    "chaque récepteur prend ce dont il a besoin et ignore le reste",
-    "les événements sont conservés pour pouvoir être rejoués",
+    "chaque récepteur prend ce dont il a besoin et ignore le reste ; les réactions décrites à côté de evenement documentent le traitement et ne sont pas publiées",
+    "le message contient soit donnees pour une création, soit modifications pour une mise à jour ; les opérations utilisent uniquement remplacer ou ajouter",
     "donnee désigne un champ direct : pas de chemin comme questions.q1 ou billets.statut ; les listes sont publiées en entier avec les champs utiles aux récepteurs, sans les secrets des billets",
     "chaque récepteur conserve ses propres id_evenement traités ; une nouvelle réception du même identifiant n'ajoute aucun effet métier",
-    "l'enregistrement de id_evenement et les modifications locales sont validés ensemble dans une seule opération atomique ; un traitement échoué ne marque pas l'événement comme traité",
-    "une republication du même événement conserve son id_evenement"
+    "pour un traitement simple, l'enregistrement de id_evenement et les modifications locales sont validés ensemble ; une annulation portant sur plusieurs réservations ou tentatives utilise le suivi durable décrit dans seance.annulee",
+    "un échec ne marque pas l'événement comme traité ; une republication conserve le même message, dont id_evenement, version_schema, sequence_objet et date",
+    "une requête métier répétée ne crée pas un nouveau fait ; elle restitue le résultat existant sans nouvel événement"
   ],
-  "transport": "Redis Streams, un flux par service émetteur"
+  "transport": "Redis Streams pour le journal conservé par émetteur ; Redis Lists ready et processing par destinataire pour la livraison, conformément au modèle retenu dans Réservations",
+  "publication": {
+    "mongodb": "enregistrer le changement métier et le message complet dans une collection locale evenements_a_publier, dans la même transaction MongoDB ; réserver sequence_objet dans cette transaction ; les transactions nécessitent un replica set",
+    "redis": "enregistrer les changements métier et le message complet dans une List locale evenements_a_publier dans un même script Lua ; réserver sequence_objet dans ce script ; valider les données et les types de clés avant toute écriture",
+    "envoi": "un seul worker par émetteur publie les messages en attente dans l'ordre ; dans un script Lua, ajouter le message au Stream evenements:{emetteur}:journal avec XADD et à chaque List evenements:{recepteur}:ready avec RPUSH ; valider les types des clés avant toute écriture",
+    "confirmation": "marquer le message comme publié dans sa base locale seulement après succès de l'envoi Redis ; en cas de panne entre envoi et confirmation, renvoyer exactement le même message : des copies techniques sont possibles, les récepteurs les dédupliquent",
+    "limites": "MongoDB et Redis ne partagent pas de transaction ; les messages en attente rendent la publication reprenable, sans promettre une livraison unique ; journal, files et scripts de distribution utilisent une même instance Redis persistante dans la base du projet"
+  },
+  "livraison": {
+    "files": "une paire ready et processing par destinataire, avec un seul worker actif par destinataire pour cette première version ; chaque destinataire reçoit sa propre copie, les services ne partagent pas une même file ready",
+    "prise": "RPUSH ajoute en fin de ready ; LMOVE evenements:{recepteur}:ready evenements:{recepteur}:processing LEFT RIGHT prend le plus ancien message sans le perdre si le worker s'arrête",
+    "traitement": "valider le format et l'ordre, puis appliquer les effets et enregistrer id_evenement et la progression locale ; dans MongoDB, utiliser une transaction ; dans Redis Quiz, utiliser un script Lua dont les validations précèdent les écritures",
+    "accuse_reception": "après succès durable, retirer une copie du message de processing avec LREM count = 1 ; si le message était déjà traité, ne pas répéter ses effets et retirer seulement cette copie",
+    "reprise": "après arrêt de l'ancien worker, le remplaçant remet les messages de processing en tête de ready avec LMOVE RIGHT LEFT ; cette remise est atomique et conserve leur ordre ; ne pas reprendre le travail d'un worker encore actif",
+    "erreurs": "après 5 échecs de traitement, conserver le message original, la cause et le nombre d'essais dans evenements:{recepteur}:echecs, puis retirer la copie de processing dans le même script Redis ; une version de schéma inconnue est mise en échec sans effet métier ; aucune de ces erreurs ne marque le message comme traité",
+    "reparation": "après correction, remettre le message original en livraison ; un objet dont un événement manque reste bloqué, mais les autres objets peuvent continuer",
+    "application_spectateur": "désigne le traitement des notifications côté serveur ; enregistrer la notification sous une clé unique id_evenement avant d'acquitter ; une nouvelle transmission actualise la même notification dans l'application ; le téléphone ne lit ni le journal ni les files Redis, seuls les messages du titulaire authentifié lui sont transmis"
+  },
+  "ordre_et_rejeu": {
+    "identite": "le couple id_evenement et contenu est immuable ; un même identifiant avec un contenu différent, ou deux événements distincts de même sequence_objet pour un objet, sont mis en échec",
+    "suivi": "chaque destinataire conserve la dernière sequence_objet examinée par objet, avec ses id_evenement traités ; la séquence est réservée uniquement aux faits publiés, les changements internes sans événement ne créent pas de trou",
+    "retard": "si une séquence manque, reparcourir le journal de l'émetteur pour cet objet avant de traiter le message suivant ; appliquer les faits adressés au destinataire et avancer sans effet pour les autres ; un récepteur peut donc commencer par un événement dont la séquence est supérieure à 1",
+    "absence": "si le journal ne contient pas encore le fait manquant, conserver le message en attente durable, sans l'acquitter avant cette sauvegarde ; reprendre lorsque le trou est comblé ; ne jamais appliquer une modification partielle en sautant les événements précédents",
+    "ancien": "un id_evenement déjà traité ne produit aucun effet ; une ancienne séquence inconnue signale une incohérence à examiner, elle ne doit pas écraser un état plus récent",
+    "reconstruction": "pour reconstruire Recherche ou Fournisseurs, utiliser une nouvelle projection avec son propre suivi de séquences et de doublons, puis relire les journaux depuis le début ; ne pas effacer le suivi du traitement en production",
+    "effets_externes": "le mode reconstruction ne lance ni remboursement, ni attribution de coupon, ni notification ; il reconstruit uniquement les données de lecture ; en reprise normale, les effets métier restent protégés par leur identifiant durable",
+    "exemples": "les 12 fichiers sont des extraits, pas un journal complet : notamment les créations de res_1002 et seance_57 et la première validation de res_981 ne sont pas illustrées ; leurs séquences existent dans le journal réel"
+  },
+  "conservation_et_securite": {
+    "journal": "aucun nettoyage automatique des Streams dans la base du projet ; conserver aussi les messages en échec et les messages en attente ; les identifiants de déduplication et décisions métier restent disponibles aussi longtemps que les événements peuvent être rejoués",
+    "persistance": "Redis avec AOF, appendfsync always, stockage disque conservé, sauvegardes et noeviction ; une reprise conserve journaux, files et décisions ; la restauration doit être vérifiée lors de l'implémentation, une panne du stockage reste une limite",
+    "secrets": "aucun jeton QR de billet ou coupon, mot de passe ou secret de signature dans les événements ; les bonnes réponses de film.modifie sont internes au serveur Quiz et exclues des vues et notifications publiques",
+    "acces": "les journaux et files sont internes aux services autorisés ; les contrôles d'identité et de rôle restent obligatoires pour toute lecture ou commande ; les secrets de coupon sont fournis uniquement par une lecture authentifiée du titulaire"
+  },
+  "references": [
+    "https://redis.io/docs/latest/commands/lmove/",
+    "https://redis.io/docs/latest/develop/programmability/eval-intro/",
+    "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+    "https://www.mongodb.com/docs/manual/core/transactions/"
+  ]
 }

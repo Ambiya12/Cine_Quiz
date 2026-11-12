@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0701",
+    "version_schema": 1,
+    "sequence_objet": 1,
     "type": "coupon.emis",
     "date": "2026-10-07T23:08:00Z",
     "emetteur": "quiz",
@@ -20,6 +22,11 @@
     }
   },
   "reactions": [
-    { "service": "application_spectateur", "effet": "affiche la notification « Un popcorn ou une boisson offert à ta prochaine visite ! » et ajoute le coupon dans « Mes coupons » ; le QR code, avec son jeton secret, est ensuite demandé au service Quiz par l'application de la titulaire connectée" }
+    { "service": "application_spectateur", "effet": "en livraison normale, affiche une seule notification au titulaire authentifié « Un popcorn ou une boisson offert à ta prochaine visite ! » et actualise « Mes coupons » ; le QR code est demandé au service Quiz par une lecture authentifiée du titulaire, jamais depuis le journal ; ne pas notifier un ancien coupon déjà utilisé ou expiré" }
+  ],
+  "regles": [
+    "le coupon provient d'une tentative terminee avec au moins 8/10 ; sa création, son historique durable et cet événement en attente sont enregistrés dans le même script Lua que la décision de récompense",
+    "ce message ne contient aucun jeton QR ; les identifiants client_id et coupon_id ne suffisent pas à autoriser sa consultation privée ou son utilisation",
+    "un rejeu conserve l'identifiant et les dates d'origine ; il ne recrée pas le coupon ni ne prolonge expire_le"
   ]
 }

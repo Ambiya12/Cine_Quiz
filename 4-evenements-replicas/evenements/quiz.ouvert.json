@@ -1,26 +1,35 @@
 {
   "evenement": {
     "id_evenement": "evt_0610",
+    "version_schema": 1,
+    "sequence_objet": 1,
     "type": "quiz.ouvert",
-    "date": "2026-10-07T22:41:00Z",
+    "date": "2026-10-07T22:46:00Z",
     "emetteur": "quiz",
     "recepteurs": ["application_spectateur"],
     "type_objet": "Tentative",
     "id_objet": "bil_981_2",
     "modifications": [
       { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "ouverte" },
-      { "donnee": "ouverte_le", "operation": "remplacer", "nouvelle_valeur": "2026-10-07T22:41:00Z" },
-      { "donnee": "demarrage_avant", "operation": "remplacer", "nouvelle_valeur": "2026-10-08T00:41:00Z" }
+      { "donnee": "demarrage_possible_jusqu_au", "operation": "remplacer", "nouvelle_valeur": "2026-10-08T00:46:00Z" }
     ],
     "contexte": {
       "client_id": "client_12",
-      "film_id": "film_dune2"
+      "film_id": "film_dune2",
+      "seance_id": "seance_42",
+      "fin_seance": "2026-10-07T22:46:00Z"
     }
   },
   "reactions": [
     {
       "service": "application_spectateur",
-      "effet": "affiche la notification « Ton quiz sur Dune est prêt, démarre avant 00 h 41 ; tu auras ensuite jusqu'à 2 min 30 pour finir »"
+      "effet": "en livraison normale, avertit uniquement le titulaire connecté : « Ton quiz sur Dune est prêt, utilise le QR code du billet et démarre avant 00 h 46 ; tu auras ensuite jusqu'à 2 min 30 pour finir » ; une livraison après la limite ne renvoie pas cette notification périmée"
     }
+  ],
+  "regles": [
+    "le worker des échéances ouvre automatiquement une tentative programmee à fin_seance, sauf si la séance est annulée ou la limite de démarrage déjà atteinte ; aucun scan de présence au générique n'est requis",
+    "le passage à ouverte et le message en attente sont enregistrés dans un même script Lua ; une reprise conserve fin_seance et sa limite plus 2 heures, sans réinitialisation",
+    "sequence_objet commence à 1 pour le premier événement publié de cette tentative, même si sa création programmee est antérieure et ne publie pas d'événement",
+    "la notification ne contient aucun jeton secret ; l'accès au quiz vérifie toujours le titulaire authentifié"
   ]
 }

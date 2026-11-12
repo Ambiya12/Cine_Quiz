@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0912",
+    "version_schema": 1,
+    "sequence_objet": 2,
     "type": "coupon.utilise",
     "date": "2026-10-15T19:40:00Z",
     "emetteur": "quiz",
@@ -20,6 +22,12 @@
     }
   },
   "reactions": [
-    { "service": "fournisseurs", "effet": "si id_evenement n'a pas déjà été traité, enregistre les données de consommation et ajoute 1 au compteur du produit choisi, ici popcorn_moyen, dans une seule transaction ; une réception répétée ne change pas les totaux" }
+    { "service": "fournisseurs", "effet": "si id_evenement n'a pas déjà été traité, enregistre les données de consommation et ajoute 1 au compteur de contexte.produit_choisi pour contexte.fournisseur_id, dans une seule transaction MongoDB avec le suivi de réception ; utilise la date métier du message selon Europe/Paris, jamais celle de sa réception ; une répétition ne change pas les totaux" }
+  ],
+  "regles": [
+    "le contrôle du jeton, de l'expiration, du produit et de la visite ultérieure, la consommation unique, la mise à jour de l'historique durable et l'événement en attente forment un même traitement atomique côté Redis",
+    "le titulaire doit avoir un billet validé le jour de l'utilisation, à une date locale différente de celle de l'émission, selon les règles actuelles du Coupon ; un second scan est refusé sans nouveau message",
+    "produit_choisi est le nom retenu dans le modèle Coupon ; il est présent dans contexte pour que Fournisseurs compte le produit remis sans charger le coupon d'origine",
+    "l'événement et les preuves durables ne sont pas supprimés avec le hash temporaire du coupon ; le fournisseur configuré et le produit remis restent ceux de l'utilisation d'origine"
   ]
 }
