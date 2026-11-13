@@ -1,10 +1,5 @@
 {
   "index": "films",
-  "conventions": {
-    "dates_stockees": "ISO 8601 avec fuseau horaire ; les exemples de stockage utilisent UTC",
-    "jour_cinema": "Europe/Paris",
-    "montants": "entiers en centimes ; diviser par 100 uniquement pour l'affichage en euros"
-  },
   "structure_de_l_index": {
     "mappings": {
       "properties": {
@@ -12,34 +7,27 @@
         "titre": { "type": "text" },
         "synopsis": { "type": "text" },
         "genres": { "type": "keyword" },
-        "a_partir_de_centimes": { "type": "integer" },
+        "a_partir_de": { "type": "float" },
         "seances": {
           "type": "nested",
           "properties": {
             "seance_id": { "type": "keyword" },
             "debut": { "type": "date" },
             "version": { "type": "keyword" },
-            "tarif_min_centimes": { "type": "integer" }
+            "tarif_min": { "type": "float" }
           }
         }
       }
     }
   },
   "recherche": {
-    "description": "Le spectateur cherche le film « Dnue », filtre sur la science-fiction et veut les séances en VF du 13 novembre 2026, selon le jour local du cinéma. Seules les séances qui n'ont pas encore commencé sont renvoyées.",
+    "description": "le spectateur tape « Dnue », filtre sur la science-fiction et cherche une séance en VF le 7 octobre",
     "requete": {
       "query": {
         "bool": {
-          "must": [
-            {
-              "match": {
-                "titre": {
-                  "query": "Dnue",
-                  "fuzziness": "AUTO"
-                }
-              }
-            }
-          ],
+          "must": {
+            "match": { "titre": { "query": "Dnue", "fuzziness": "AUTO" } }
+          },
           "filter": [
             { "term": { "genres": "science-fiction" } },
             {
@@ -49,43 +37,15 @@
                   "bool": {
                     "filter": [
                       { "term": { "seances.version": "VF" } },
-                      { "range": { "seances.debut": { "gte": "now" } } },
-                      {
-                        "range": {
-                          "seances.debut": {
-                            "gte": "2026-11-13T00:00:00",
-                            "lt": "2026-11-14T00:00:00",
-                            "time_zone": "Europe/Paris"
-                          }
-                        }
-                      }
+                      { "range": { "seances.debut": { "gte": "2026-10-07T00:00:00Z", "lte": "2026-10-07T23:59:59Z" } } }
                     ]
                   }
-                },
-                "inner_hits": {
-                  "name": "seances_correspondantes",
-                  "size": 100,
-                  "sort": [
-                    { "seances.debut": { "order": "asc" } }
-                  ]
                 }
               }
             }
           ]
         }
       }
-    },
-    "explication": [
-      "match avec fuzziness AUTO tolère une faute de frappe dans le titre",
-      "la requête nested garantit que la version et les dates filtrées appartiennent à une même séance",
-      "gte now exclut les séances déjà commencées au moment de la recherche",
-      "time_zone Europe/Paris interprète les bornes du jour selon le calendrier local du cinéma, y compris lors des changements d'heure",
-      "inner_hits renvoie uniquement les séances qui satisfont les filtres ; sans inner_hits, Elasticsearch peut sélectionner un film grâce à une séance correspondante tout en laissant apparaître d'autres séances dans le document source"
-    ],
-    "prix_minimum": {
-      "champ": "a_partir_de_centimes",
-      "regle": "afficher a_partir_de_centimes / 100 avec deux décimales ; recalculer ce champ à chaque événement de séance et chaque jour après minuit Europe/Paris",
-      "raison_actualisation_quotidienne": "le temps qui passe peut rendre une séance passée sans produire d'événement ; le recalcul quotidien évite de conserver un prix minimum basé uniquement sur des séances terminées"
     }
   }
 }

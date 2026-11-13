@@ -2,57 +2,23 @@
   "projection": "ConsommationJournaliere",
   "service": "fournisseurs",
   "base": "mongodb",
-  "question_metier": "Combien de produits de chaque type ont été remis gratuitement aux spectateurs grâce aux coupons, par fournisseur et par jour, et quelle est leur valeur commerciale ?",
+  "question_metier": "Combien de produits de chaque type ai-je fournis, par jour, pour facturer le cinéma et réapprovisionner ?",
   "evenements_sources": ["coupon.utilise"],
-  "conventions": {
-    "date_evenement": "ISO 8601 avec fuseau horaire ; l'événement est conservé avec sa date d'origine",
-    "jour_de_regroupement": "jour local du cinéma, fuseau Europe/Paris",
-    "montants": "valeurs entières en centimes d'euro (EUR)",
-    "valeur_unitaire": "valeur commerciale publique du produit remis gratuitement, figée dans l'événement au moment de l'utilisation du coupon ; ce n'est ni le coût d'achat du cinéma ni une facture fournisseur"
-  },
   "transformation": [
-    "lire l'enveloppe officielle de l'événement et conserver l'événement complet dans evenements_recus, identifié par evenement.id_evenement",
-    "lire evenement.contexte.type, fournisseur_id, film_origine_id et valeur_unitaire_centimes",
-    "convertir evenement.date en date locale Europe/Paris avant de déterminer le jour de consommation ; ne pas utiliser directement la date UTC pour le regroupement journalier",
-    "pour le fournisseur et le jour local concernés, incrémenter la quantité du produit et ajouter sa valeur unitaire à sa valeur_totale_centimes",
-    "incrémenter également la quantité_totale et la valeur_totale_centimes du document journalier",
-    "effectuer l'insertion de l'événement et la mise à jour de la projection dans une même transaction MongoDB afin qu'une panne ne laisse pas un événement marqué comme traité sans que ses compteurs aient été mis à jour"
+    "conserver chaque événement reçu tel quel dans la collection evenements_recus",
+    "ajouter 1 au compteur du produit, pour ce fournisseur et ce jour, dans la collection consommations"
   ],
   "regles": [
-    "un même evenement.id_evenement ne peut être comptabilisé qu'une seule fois, même en cas de livraison répétée",
-    "l'identifiant unique de l'événement sert de clé de déduplication dans evenements_recus",
-    "la date du document journalier est au format AAAA-MM-JJ selon Europe/Paris ; son identifiant est fournisseur_id|date_locale",
-    "la valeur unitaire est figée lors de l'utilisation du coupon pour que les changements ultérieurs de prix ne modifient pas l'historique",
-    "aucun client_id ni jeton QR ou autre secret n'est copié dans la projection agrégée consommations",
-    "valeur_totale_centimes désigne la valeur commerciale des produits distribués gratuitement ; elle ne représente pas une somme due au fournisseur"
+    "un même événement n'est compté qu'une seule fois, même s'il est reçu deux fois",
+    "aucune donnée sur les clients n'est conservée"
   ],
-  "prerequis_evenement": {
-    "evenement": "coupon.utilise",
-    "champ_a_ajouter": "evenement.contexte.valeur_unitaire_centimes",
-    "description": "valeur commerciale du produit remis, en centimes d'euro, déterminée par le service propriétaire au moment de l'utilisation du coupon ; par exemple 450 pour un produit valorisé à 4,50 EUR",
-    "important": "le format actuel de coupon.utilise ne contient pas ce montant ; sans cette évolution de l'événement, la projection ne peut calculer qu'une quantité, pas une valeur commerciale fiable"
-  },
-  "stockage": {
-    "evenements_recus": "un document par événement reçu, avec evenement.id_evenement comme _id et l'enveloppe complète conservée",
-    "consommations": "un document par fournisseur et par jour local dans la collection consommations"
-  },
+  "evolution": "les événements conservés peuvent être rejoués pour construire une nouvelle projection, par exemple par heure ou par film d'origine, sans rien changer aux autres services",
+  "stockage": "un document par fournisseur et par jour dans la collection consommations",
   "exemple": {
     "_id": "fourn_popcorn_1|2026-10-15",
     "fournisseur_id": "fourn_popcorn_1",
-    "date_locale": "2026-10-15",
-    "fuseau_horaire": "Europe/Paris",
-    "produits": {
-      "popcorn_moyen": {
-        "quantite": 42,
-        "valeur_totale_centimes": 18900
-      },
-      "menu": {
-        "quantite": 17,
-        "valeur_totale_centimes": 14450
-      }
-    },
-    "quantite_totale": 59,
-    "valeur_totale_centimes": 33350,
-    "devise": "EUR"
+    "date": "2026-10-15",
+    "produits": { "popcorn_moyen": 42, "menu": 17 },
+    "total": 59
   }
 }
