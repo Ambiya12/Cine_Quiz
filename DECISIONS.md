@@ -38,9 +38,33 @@ des profils reste hors périmètre.
 
 ## Évolutions possibles
 
+- **Place offerte** contre des points, utilisable à la caisse du cinéma.
 - **Vente au guichet**, y compris la régularisation d'un tarif réduit sans justificatif.
 - **Frais d'annulation**, par exemple 1 € par billet.
+- **Notation des films**, pour affiner les recommandations.
+- **Invitations d'amis**, à accepter ou refuser.
 - **Projection Statistiques** : taux de remplissage et taux d'absence par séance et par film, à partir de `seance.creee`, `reservation.confirmee`, `reservation.annulee` et `billet.valide`, pour aider le gérant à programmer ses films.
 - **Projection Qualité du quiz** : repérer les questions trop faciles ou trop difficiles, en enrichissant `quiz.termine` du détail des réponses.
 - **Plusieurs cinémas**, avec un agrégat `Cinema` et un `cinema_id` dans la Salle.
 - **Âge minimum** pour les films interdits aux moins de 12 ou 16 ans, vérifié à la réservation.
+
+## Conventions proposées pour les projections
+
+Les conventions ci-dessous correspondent aux choix retenus pour compléter les
+projections Recherche et Fournisseurs. Elles restent à faire valider par l'équipe
+lors de la revue collective.
+
+| Sujet | Convention proposée | Statut |
+|---|---|---|
+| Jour de consommation | Regrouper les événements selon le jour civil du cinéma, dans le fuseau `Europe/Paris` ; conserver l'instant original de l'événement avec son fuseau | À valider en équipe |
+| Montants des projections | Stocker les montants en centimes entiers d'euros (`EUR`) | À valider en équipe |
+| Valeur des coupons utilisés | Enregistrer la valeur commerciale du produit effectivement remis gratuitement au spectateur, figée au moment de l'utilisation du coupon | À valider en équipe |
+| Nature de la valeur | Cette valeur décrit le produit distribué ; elle ne représente ni le coût d'achat du cinéma ni une somme automatiquement due au fournisseur | À valider en équipe |
+| Contrat `coupon.utilise` | Ajouter `evenement.contexte.valeur_unitaire_centimes`, fourni par le service propriétaire du coupon au moment de son utilisation | Évolution du contrat à coordonner |
+| Déduplication Fournisseurs | Utiliser `evenement.id_evenement` comme identifiant unique et enregistrer l'événement ainsi que ses compteurs dans une même transaction MongoDB | À valider selon l'environnement MongoDB |
+| Déploiement MongoDB | La transaction de l'exemple nécessite un replica set ou un cluster shardé ; elle ne fonctionne pas sur une instance autonome | Prérequis technique |
+
+La projection Fournisseurs ne copie ni identifiant client ni jeton QR. Les événements
+historiques qui ne contiennent pas `valeur_unitaire_centimes` ne permettent pas de
+reconstituer cette valeur de manière fiable : ils peuvent alimenter les quantités,
+mais pas une valorisation rétroactive sans source de prix vérifiée.
