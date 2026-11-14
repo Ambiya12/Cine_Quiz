@@ -12,7 +12,7 @@
   },
   "transformation": [
     "lire l'enveloppe officielle de l'événement et conserver l'événement complet dans evenements_recus, identifié par evenement.id_evenement",
-    "lire evenement.contexte.type, fournisseur_id, film_origine_id et valeur_unitaire_centimes ; cette dernière donnée doit être ajoutée au contrat de coupon.utilise par le service quiz_fidelite",
+    "lire evenement.contexte.produit_choisi, fournisseur_id, film_origine_id et valeur_unitaire_centimes ; cette dernière donnée doit être ajoutée au contrat de coupon.utilise par le service quiz",
     "convertir evenement.date en date locale Europe/Paris avant de déterminer le jour de consommation ; ne pas utiliser directement la date UTC pour le regroupement journalier",
     "pour le fournisseur et le jour local concernés, incrémenter la quantité du produit et ajouter sa valeur unitaire à sa valeur_totale_centimes",
     "incrémenter également la quantité_totale et la valeur_totale_centimes du document journalier",
@@ -36,7 +36,7 @@
     "evenements_recus": "un document par événement reçu, avec evenement.id_evenement comme _id et l'enveloppe complète conservée",
     "consommations": "un document par fournisseur et par jour local dans la collection consommations"
   },
-  "exemple": {
+    "exemple": {
     "_id": "fourn_popcorn_1|2026-10-15",
     "fournisseur_id": "fourn_popcorn_1",
     "date_locale": "2026-10-15",
@@ -46,13 +46,13 @@
         "quantite": 42,
         "valeur_totale_centimes": 18900
       },
-      "menu": {
+      "boisson": {
         "quantite": 17,
-        "valeur_totale_centimes": 14450
+        "valeur_totale_centimes": 5950
       }
     },
     "quantite_totale": 59,
-    "valeur_totale_centimes": 33350,
+    "valeur_totale_centimes": 24850,
     "devise": "EUR"
   }
 }

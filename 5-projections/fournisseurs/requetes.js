@@ -1,3 +1,4 @@
+
 // Projection Fournisseurs : ConsommationJournaliere
 // Source : événements coupon.utilise émis par le service quiz_fidelite.
 // Exemples prévus pour mongosh et un déploiement MongoDB en replica set,
@@ -35,7 +36,7 @@ function traiterCouponUtilise(evenement) {
 
   const idEvenement = evenement.id_evenement;
   const fournisseurId = evenement.contexte?.fournisseur_id;
-  const typeProduit = evenement.contexte?.type;
+  const typeProduit = evenement.contexte?.produit_choisi;
   const filmOrigineId = evenement.contexte?.film_origine_id ?? null;
   const valeurUnitaireCentimes = evenement.contexte?.valeur_unitaire_centimes;
 
@@ -109,7 +110,7 @@ const exempleEvenement = {
   id_evenement: "evt_0912",
   type: "coupon.utilise",
   date: "2026-10-15T19:40:00Z",
-  emetteur: "quiz_fidelite",
+  emetteur: "quiz",
   recepteurs: ["fournisseurs"],
   type_objet: "Coupon",
   id_objet: "cpn_55",
@@ -118,7 +119,7 @@ const exempleEvenement = {
     { donnee: "utilise_le", nouvelle_valeur: "2026-10-15T19:40:00Z" }
   ],
   contexte: {
-    type: "popcorn_moyen",
+    produit_choisi: "popcorn_moyen",
     fournisseur_id: "fourn_popcorn_1",
     film_origine_id: "film_dune2",
     valeur_unitaire_centimes: 450
@@ -127,7 +128,7 @@ const exempleEvenement = {
 
 // À appeler une seule fois à la réception du message Redis Stream :
 // traiterCouponUtilise(exempleEvenement);
-
+db = db.getSiblingDB("fournisseurs");
 // 1. Requête métier : quantités et valeur commerciale distribuées
 //    par produit sur le mois d'octobre pour un fournisseur.
 db.consommations.aggregate([
