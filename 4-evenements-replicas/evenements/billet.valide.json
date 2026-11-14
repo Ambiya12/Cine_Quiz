@@ -51,7 +51,7 @@
     {
       "service": "quiz",
       "agregat": "Tentative",
-      "effet": "dans un même script Lua, vérifier quiz:seances_annulees, créer au plus une tentative programmee pour contexte.billet_id, enregistrer le titulaire et fin_seance, fixer demarrage_possible_jusqu_au à fin_seance plus 2 heures et ajouter l'ouverture à quiz:echeances ; enregistrer id_evenement avec ces changements ; une livraison tardive garde les horaires initiaux et ne crée pas une nouvelle fenêtre"
+      "effet": "dans un même script Lua, vérifier quiz:seances_annulees, créer au plus une tentative programmee pour contexte.billet_id, enregistrer le titulaire et fin_seance, fixer demarrage_possible_jusqu_au à fin_seance plus 2 heures et ajouter l'ouverture à quiz:echeances ; ajouter contexte.billet_id à quiz:tentatives_par_seance:{seance_id} ; enregistrer id_evenement avec ces changements ; une livraison tardive garde les horaires initiaux et ne crée pas une nouvelle fenêtre"
     },
     {
       "service": "quiz",
