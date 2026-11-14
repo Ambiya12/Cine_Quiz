@@ -1,3 +1,4 @@
+
 {
   "format": "événement CinéQuiz",
   "champs": {
@@ -32,7 +33,7 @@
   "transport": "Redis Streams pour le journal conservé par émetteur ; Redis Lists ready et processing par destinataire pour la livraison, conformément au modèle retenu dans Réservations",
   "publication": {
     "mongodb": "enregistrer le changement métier et le message complet dans une collection locale evenements_a_publier, dans la même transaction MongoDB ; réserver sequence_objet dans cette transaction ; les transactions nécessitent un replica set",
-    "redis": "enregistrer les changements métier et le message complet dans une List locale evenements_a_publier dans un même script Lua ; réserver sequence_objet dans ce script ; valider les données et les types de clés avant toute écriture",
+    "redis": "enregistrer les changements métier et le message complet dans une List locale quiz:evenements_a_publier dans un même script Lua ; réserver sequence_objet dans ce script ; valider les données et les types de clés avant toute écriture",
     "envoi": "un seul worker par émetteur publie les messages en attente dans l'ordre ; dans un script Lua, ajouter le message au Stream evenements:{emetteur}:journal avec XADD et à chaque List evenements:{recepteur}:ready avec RPUSH ; valider les types des clés avant toute écriture",
     "confirmation": "marquer le message comme publié dans sa base locale seulement après succès de l'envoi Redis ; en cas de panne entre envoi et confirmation, renvoyer exactement le même message : des copies techniques sont possibles, les récepteurs les dédupliquent",
     "limites": "MongoDB et Redis ne partagent pas de transaction ; les messages en attente rendent la publication reprenable, sans promettre une livraison unique ; journal, files et scripts de distribution utilisent une même instance Redis persistante dans la base du projet"
