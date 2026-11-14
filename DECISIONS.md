@@ -29,12 +29,12 @@ des profils reste hors périmètre.
 | Conservation Redis | Nettoyage des coupons et historique des récompeneses obtenues par les spectateurs et index client durables ; AOF sur disque conservé et sans éviction automatique pour Redis Quiz |Validé par l'équipe |
 | Coupons | Valables 30 jours, usage unique, rattachés au client et à leur tentative d'origine ; produit choisi au comptoir à une visite ultérieure ; protégés par un jeton secret dans le QR code | Validée par l'équipe  |
 | Paiement et authentification | Hors périmètre, assurés par des prestataires simulés | Validée par l'équipe|
-| Occupation d'une salle | Une séance occupe sa salle de `debut` à `fin_occupation` (fin du film + 15 min de nettoyage) ; contrôle des chevauchements dans une transaction MongoDB qui incrémente `version_planning` de la salle, pour sérialiser les créations concurrentes | |
+| Occupation d'une salle | Une séance occupe sa salle de `debut` à `fin_occupation` (fin du film + 15 min de nettoyage) ; contrôle des chevauchements dans une transaction MongoDB qui incrémente `version_planning` de la salle, pour sérialiser les créations concurrentes | Evolution possible|
 | Modification d'une séance | Seuls les tarifs sont modifiables, avant le début ; film, salle, début et version figés ; sinon annuler et recréer | |
-| Grille tarifaire | Plein, réduit et enfant obligatoires, positifs, deux décimales au plus, enfant ≤ réduit ≤ plein | |
-| Plan de salle et durée du film | Plan figé après création de la salle ; durée et générique d'un film figés tant qu'une séance programmée est à venir | |
-| Identifiants | Préfixe en minuscules et tiret bas (`film_`, `res_`, `cpn_`…) ; exemples lisibles, générés automatiquement en réalité | |
-| Projections | Fournisseurs et Recherche (avec ElasticSearch) | |
+| Grille tarifaire | Plein, réduit et enfant obligatoires, positifs, deux décimales au plus, enfant ≤ réduit ≤ plein | Evolution possible |
+| Plan de salle et durée du film | Plan figé après création de la salle ; durée et générique d'un film figés tant qu'une séance programmée est à venir | Evolution à revoir |
+| Identifiants | Préfixe en minuscules et tiret bas (`film_`, `res_`, `cpn_`…) ; exemples lisibles, générés automatiquement en réalité | Validée par l'équipe |
+| Projections | Fournisseurs et Recherche (avec ElasticSearch) |Validée par l'équipe|
 
 ## Évolutions possibles
 
@@ -56,8 +56,8 @@ lors de la revue collective.
 
 | Sujet | Convention proposée | Statut |
 |---|---|---|
-| Jour de consommation | Regrouper les événements selon le jour civil du cinéma, dans le fuseau `Europe/Paris` ; conserver l'instant original de l'événement avec son fuseau | À valider en équipe |
-| Montants des projections | Stocker les montants en centimes entiers d'euros (`EUR`) | À valider en équipe |
+| Jour de consommation | Regrouper les événements selon le jour civil du cinéma, dans le fuseau `Europe/Paris` ; conserver l'instant original de l'événement avec son fuseau | Validée par équipe |
+| Montants des projections | Stocker les montants en centimes entiers d'euros (`EUR`) | Validée par l'équipe |
 | Valeur des coupons utilisés | Enregistrer la valeur commerciale du produit effectivement remis gratuitement au spectateur, figée au moment de l'utilisation du coupon | À valider en équipe |
 | Nature de la valeur | Cette valeur décrit le produit distribué ; elle ne représente ni le coût d'achat du cinéma ni une somme automatiquement due au fournisseur | À valider en équipe |
 | Contrat `coupon.utilise` | Ajouter `evenement.contexte.valeur_unitaire_centimes`, fourni par le service propriétaire du coupon au moment de son utilisation | Évolution du contrat à coordonner |
