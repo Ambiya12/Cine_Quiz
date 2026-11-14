@@ -1,6 +1,8 @@
 {
   "evenement": {
     "id_evenement": "evt_0041",
+    "version_schema": 1,
+    "sequence_objet": 2,
     "type": "seance.modifiee",
     "date": "2026-10-06T10:30:00Z",
     "emetteur": "catalogue",
@@ -8,11 +10,14 @@
     "type_objet": "Seance",
     "id_objet": "seance_42",
     "modifications": [
-      { "donnee": "tarifs.reduit", "nouvelle_valeur": 8.50 }
-    ]
+      { "donnee": "tarifs", "operation": "remplacer", "nouvelle_valeur": { "plein": 11.50, "reduit": 8.50, "enfant": 7.00 } }
+    ],
+    "contexte": {
+      "film_id": "film_dune2"
+    }
   },
   "reactions": [
-    { "service": "reservations", "effet": "met à jour le tarif dans son réplica ; les billets déjà vendus gardent leur prix" },
-    { "service": "recherche", "effet": "met à jour le tarif le plus bas affiché dans les résultats" }
+    { "service": "reservations", "effet": "remplace la grille complète des tarifs dans son réplica ; les billets déjà vendus gardent leur prix" },
+    { "service": "recherche", "effet": "recalcule le tarif le plus bas de la séance à partir de la grille complète reçue, puis le minimum global affiché pour le film" }
   ]
 }

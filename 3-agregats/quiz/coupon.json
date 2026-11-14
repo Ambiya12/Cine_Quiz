@@ -1,0 +1,35 @@
+{
+  "agregat": "Coupon",
+  "service": "quiz",
+  "stockage": "un hash Redis quiz:coupon:{coupon_id}, nettoyé après utilisation ou expiration, avec les index Redis décrits dans lectures",
+  "lectures": [
+    { "requete": "Charger un coupon scanné au comptoir", "cle": "quiz:coupon:{coupon_id}", "type": "hash" },
+    { "requete": "Lister les coupons d'un client (« Mes coupons »)", "cle": "quiz:coupons:{client_id}", "type": "set" },
+    { "requete": "Vérifier que le titulaire a un billet validé aujourd'hui", "cle": "quiz:visites:{date}", "type": "set des client_id, rempli par billet.valide, expiré après 2 jours" },
+    { "requete": "Consulter l'historique des récompenses d'un client", "cle": "quiz:recompenses:{client_id}", "type": "list, durable" }
+  ],
+  "regles": [
+    "émis quand une tentative se termine avec au moins 8/10 ; au plus un coupon par tentative, lié par tentative_id",
+    "rattaché à son titulaire et à sa tentative d'origine",
+    "valable 30 jours, utilisable une seule fois, au comptoir",
+    "le produit est choisi au comptoir parmi produits_eligibles ; produit_choisi vaut null jusqu'à l'utilisation",
+    "utilisable lors d'une visite ultérieure : un autre jour que celui de son émission, avec un billet validé le jour même",
+    "le QR code contient un jeton secret, envoyé uniquement à l'application du titulaire, à sa demande, et jamais dans un événement",
+    "après utilisation ou expiration, le coupon est nettoyé ; la récompense reste dans l'historique durable du client"
+  ],
+  "references": ["client_id", "tentative_id", "film_origine_id", "fournisseur_id"],
+  "exemple": {
+    "coupon_id": "cpn_55",
+    "client_id": "client_12",
+    "tentative_id": "bil_981_2",
+    "film_origine_id": "film_dune2",
+    "produits_eligibles": ["popcorn_moyen", "boisson"],
+    "produit_choisi": "popcorn_moyen",
+    "fournisseur_id": "fourn_popcorn_1",
+    "jeton_qr": "e94d...",
+    "emis_le": "2026-10-07T23:08:00Z",
+    "expire_le": "2026-11-06T23:08:00Z",
+    "utilise": true,
+    "utilise_le": "2026-10-15T19:40:00Z"
+  }
+}

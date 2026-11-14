@@ -1,30 +1,86 @@
 {
   "agregat": "Reservation",
   "service": "reservations",
-  "stockage": "trois tables Cassandra : reservations (par reservation_id), billets_par_seance (par seance_id et place) et billets_par_client (par titulaire_id)",
+  "stockage": "cinq collections MongoDB pour cet agrégat : reservations, billets_par_id, reservations_par_client, billets_par_client et billets_par_seance ; le réplica seances_replica reste séparé",
+  "lectures": [
+    {
+      "requete": "Charger une réservation",
+      "cle": "index sur reservation_id",
+      "collection": "reservations"
+    },
+    {
+      "requete": "Retrouver un billet par son identifiant",
+      "cle": "index sur billet_id",
+      "resultat": "reservation_id ; charger ensuite la réservation pour lire le billet et son état de référence",
+      "collection": "billets_par_id"
+    },
+    {
+      "requete": "Lister les réservations achetées par un client",
+      "cle": "index sur acheteur_id et reservation_id",
+      "collection": "reservations_par_client"
+    },
+    {
+      "requete": "Lister les billets détenus par un client",
+      "cle": "index sur titulaire_id et billet_id",
+      "collection": "billets_par_client"
+    },
+    {
+      "requete": "Vérifier l'attribution d'une place",
+      "cle": "index unique sur (seance_id, place)",
+      "collection": "billets_par_seance"
+    },
+    {
+      "requete": "Trouver les réservations actives à annuler pour une séance",
+      "cle": "index sur seance_id",
+      "resultat": "collecter les reservation_id distincts puis charger ces réservations",
+      "collection": "billets_par_seance"
+    }
+  ],
+  "regles_stockage": [
+    "reservations conserve le document de référence de la réservation, ses billets et ses paiements ; les collections par client servent aux lectures",
+    "billets_par_id conserve le lien billet_id vers reservation_id, y compris après annulation ; billets_par_seance contient seance_id, place, reservation_id et billet_id pour les places actuellement attribuées",
+    "dans billets_par_seance, créer un index unique MongoDB sur (seance_id, place) ; une place ne peut avoir qu’une attribution active à la fois",
+    "la confirmation vérifie et attribue la place de façon atomique dans billets_par_seance ; une insertion concurrente avec la même paire (seance_id, place) échoue sur l’index unique ; un verrou Redis temporaire ne confirme pas la vente",
+    "la création renseigne les cinq collections ; l’acheteur et le titulaire peuvent être différents dès l’achat, mais ni transfert de billet ni modification de réservation ne sont autorisés après confirmation",
+    "une annulation conserve l’historique dans reservations, met à jour les collections de lecture et libère uniquement les places encore attribuées à cette réservation ; l’index unique reste utilisable pour une vente ultérieure",
+    "les identifiants de demande et de paiement sont contrôlés durablement par des index uniques adaptés pour qu’une demande répétée ne crée pas un deuxième achat",
+    "le remboursement est enregistré une seule fois par réservation : la mise à jour conditionnelle du statut confirmee vers annulee empêche une deuxième annulation ; un identifiant de remboursement unique évite le doublon",
+    "les mises à jour concernant plusieurs documents ou collections doivent rester cohérentes ; l’atomicité d’une opération MongoDB sur un seul document ne garantit pas à elle seule celle de toutes les collections",
+    "les lectures par identifiant ou client utilisent les index définis, sans balayage global ; les copies de lecture sont mises à jour par Réservations"
+  ],
   "regles": [
     "un billet par place, chacun avec son propre QR code",
-    "le montant est égal à la somme des prix des billets",
-    "la somme des paiements et remboursements est égale au montant",
+    "montant est le prix d'achat initial, égal à la somme des prix des billets ; il reste inchangé après annulation",
+    "le montant net payé est calculé en additionnant les paiements positifs et remboursements négatifs : montant avant remboursement, 0 après remboursement total ; aucun champ supplémentaire n'est stocké",
+    "le remboursement est ajouté à paiements sans effacer le paiement initial",
     "le prix d'un billet est celui de la séance au moment de l'achat et ne change plus",
-    "une place ne peut être vendue qu'une seule fois",
+    "pour un même seance_id et une même place, une seule réservation active peut détenir la place ; le contrôle de disponibilité et l'attribution sont une seule décision atomique dans billets_par_seance",
+    "le verrou Redis de cinq minutes est temporaire ; il ne remplace pas la garantie d'attribution unique lors de la confirmation",
     "un billet à tarif réduit ou enfant n'est validé que si le justificatif a été vérifié",
-    "seul l'acheteur peut annuler, jusqu'à 30 minutes avant la séance, si aucun billet n'est validé",
-    "une réservation ne peut pas être modifiée"
+    "le cinéma peut annuler avant la fin prévue de la séance, même après une entrée ; les réservations encore confirmées sont remboursées et les dates valide_le sont conservées",
+    "une réservation déjà annulée ne reçoit jamais un autre remboursement, même si une annulation cinéma suit une annulation acheteur",
+    "l'acheteur peut annuler sa réservation au moins une heure avant le début de la séance, si la réservation est encore confirmée et si aucun billet n'a été validé ; un remboursement intégral est enregistré une seule fois",
+    "une réservation ne peut pas être modifiée et un billet ne peut pas être transféré après l'achat ; le titulaire est choisi lors de l'achat",
+    "une demande de confirmation répétée ne crée ni deuxième réservation ni deuxième paiement ; une annulation répétée ne crée pas de deuxième remboursement",
+    "les événements reçus via Redis Lists peuvent être livrés plusieurs fois ; chaque id_evenement traité est mémorisé avec les modifications métier dans MongoDB pour éviter les effets supplémentaires"
   ],
-  "references": ["acheteur_id", "seance_id", "titulaire_id"],
+  "references": [
+    "acheteur_id",
+    "seance_id",
+    "titulaire_id"
+  ],
   "exemple": {
     "reservation_id": "res_981",
     "acheteur_id": "client_12",
     "seance_id": "seance_42",
     "statut": "confirmee",
-    "montant": 20.50,
+    "montant": 20.5,
     "billets": [
       {
         "billet_id": "bil_981_1",
         "place": "F7",
         "tarif": "plein",
-        "prix": 11.50,
+        "prix": 11.5,
         "titulaire_id": "client_40",
         "jeton_qr": "a8f3...",
         "statut": "validee",
@@ -35,7 +91,7 @@
         "billet_id": "bil_981_2",
         "place": "F8",
         "tarif": "reduit",
-        "prix": 9.00,
+        "prix": 9.0,
         "titulaire_id": "client_12",
         "jeton_qr": "c71b...",
         "statut": "validee",
@@ -44,7 +100,12 @@
       }
     ],
     "paiements": [
-      { "type": "paiement", "montant": 20.50, "reference": "pay_330", "date": "2026-10-05T14:02:00Z" }
+      {
+        "type": "paiement",
+        "montant": 20.5,
+        "reference": "pay_330",
+        "date": "2026-10-05T14:02:00Z"
+      }
     ],
     "cree_le": "2026-10-05T14:02:00Z"
   }

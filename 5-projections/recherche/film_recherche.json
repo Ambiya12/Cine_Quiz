@@ -2,33 +2,45 @@
   "projection": "FilmRecherche",
   "service": "recherche",
   "base": "elasticsearch",
-  "question_metier": "Quels films correspondent à ce que tape le spectateur, même avec une faute de frappe, et quelles sont leurs séances ?",
-  "evenements_sources": ["film.cree", "film.modifie", "seance.creee", "seance.modifiee", "seance.annulee"],
+  "question_metier": "Quels films correspondent à ce que tape le spectateur, même avec une faute de frappe, et quelles sont leurs séances à venir ?",
+  "evenements_sources": [
+    "film.cree",
+    "film.modifie",
+    "seance.creee",
+    "seance.modifiee",
+    "seance.annulee"
+  ],
   "transformation": [
-    "un document par film, avec ses séances à l'intérieur",
-    "seuls le titre, le synopsis et les genres du film sont gardés ; les questions du quiz sont ignorées",
-    "chaque séance garde son horaire, sa version et son tarif le plus bas",
-    "le film garde aussi le tarif le plus bas de toutes ses séances, pour l'affichage « à partir de »",
-    "une séance annulée est retirée du document ; un film retiré de l'affiche est retiré de l'index"
+    "un document Elasticsearch par film, avec ses séances dans un tableau nested afin de pouvoir filtrer les champs d'une même séance ensemble",
+    "ne conserver que les informations utiles à la recherche : titre, synopsis et genres ; les questions du quiz ne sont jamais indexées",
+    "conserver les séances non annulées, y compris les séances passées ; l'exclusion des séances passées est faite au moment de la recherche avec la date courante, et non définitivement lors de l'indexation",
+    "pour chaque séance, calculer tarif_min_centimes comme le plus petit tarif parmi plein, réduit et enfant ; convertir les tarifs exprimés en euros dans l'agrégat Seance en centimes entiers",
+    "calculer a_partir_de_centimes comme le plus petit tarif des séances non annulées dont le début est postérieur à l'instant du recalcul",
+    "à chaque événement de séance, reconstruire la séance concernée puis recalculer a_partir_de_centimes pour le film ; une annulation retire la séance du tableau",
+    "si un film passe à a_l_affiche=false, supprimer son document de l'index de recherche sans supprimer le film de la base Catalogue"
   ],
   "regles": [
-    "l'index est une copie en lecture seule : aucune commande ne le modifie directement",
-    "à chaque événement, le document du film concerné est reconstruit puis réindexé"
+    "l'index Elasticsearch est une projection en lecture seule : aucune commande métier ne modifie directement les documents",
+    "les événements sont lus selon leur enveloppe officielle : evenement.id_evenement, evenement.type, evenement.date, evenement.id_objet, evenement.donnees, evenement.modifications et evenement.contexte",
+    "les dates des événements sont conservées en ISO 8601 avec fuseau (UTC dans les exemples) ; les dates de recherche exprimées en jour du cinéma sont interprétées avec le fuseau Europe/Paris",
+    "les montants indexés sont des entiers en centimes pour éviter les imprécisions des nombres décimaux",
+    "a_partir_de_centimes est recalculé à chaque changement de séance et lors d'une actualisation quotidienne après minuit, heure de Paris, afin qu'une séance devenue passée ne reste pas dans le prix affiché",
+    "si aucune séance future non annulée n'existe, a_partir_de_centimes vaut null"
   ],
-  "evolution": "de nouveaux filtres (âge minimum, durée, note) peuvent être ajoutés en enrichissant les documents à partir des événements conservés",
-  "stockage": "un document par film dans l'index films d'Elasticsearch",
+  "evolution": "de nouveaux filtres (âge minimum, durée, note) peuvent être ajoutés en enrichissant les documents à partir des événements conservés, sans indexer les questions du quiz",
+  "stockage": "un document par film dans l'index films d'Elasticsearch ; le champ seances est de type nested",
   "exemple": {
     "film_id": "film_dune2",
     "titre": "Dune : Deuxième partie",
     "synopsis": "...",
     "genres": ["science-fiction", "aventure"],
-    "a_partir_de": 7.00,
+    "a_partir_de_centimes": 700,
     "seances": [
       {
         "seance_id": "seance_42",
-        "debut": "2026-10-07T20:00:00Z",
+        "debut": "2026-11-13T20:00:00Z",
         "version": "VF",
-        "tarif_min": 7.00
+        "tarif_min_centimes": 700
       }
     ]
   }

@@ -1,19 +1,36 @@
 {
   "evenement": {
     "id_evenement": "evt_0300",
+    "version_schema": 1,
+    "sequence_objet": 1,
     "type": "reservation.confirmee",
     "date": "2026-10-05T14:02:00Z",
     "emetteur": "reservations",
-    "recepteurs": ["social"],
+    "recepteurs": [],
     "type_objet": "Reservation",
     "id_objet": "res_981",
     "donnees": {
       "acheteur_id": "client_12",
       "seance_id": "seance_42",
-      "montant": 20.50,
+      "statut": "confirmee",
+      "montant": 20.5,
       "billets": [
-        { "billet_id": "bil_981_1", "place": "F7", "tarif": "plein", "prix": 11.50, "titulaire_id": "client_12", "statut": "payee" },
-        { "billet_id": "bil_981_2", "place": "F8", "tarif": "reduit", "prix": 9.00, "titulaire_id": "client_12", "statut": "payee" }
+        {
+          "billet_id": "bil_981_1",
+          "place": "F7",
+          "tarif": "plein",
+          "prix": 11.5,
+          "titulaire_id": "client_40",
+          "statut": "payee"
+        },
+        {
+          "billet_id": "bil_981_2",
+          "place": "F8",
+          "tarif": "reduit",
+          "prix": 9.0,
+          "titulaire_id": "client_12",
+          "statut": "payee"
+        }
       ]
     },
     "contexte": {
@@ -21,7 +38,11 @@
       "debut_seance": "2026-10-07T20:00:00Z"
     }
   },
-  "reactions": [
-    { "service": "social", "effet": "crée la relation VA_VOIR entre l'acheteur et le film ; elle n'apparaît dans « tes amis vont voir » que si l'acheteur a activé le partage" }
+  "reactions": [],
+  "regles": [
+    "l'événement est enregistré avec la réservation et l'attribution de toutes ses places dans une même transaction MongoDB ; une attribution partielle ne publie aucune confirmation",
+    "les titulaires sont fixés dès l'achat ; ici client_40 détient le premier billet et client_12 le second, sans transfert ultérieur",
+    "une même demande ou un même paiement déjà confirmé restitue la réservation existante sans nouvel événement ; les jetons QR restent dans Réservations",
+    "recepteurs reste vide dans le périmètre actuel ; le message est conservé dans le journal de Réservations"
   ]
 }

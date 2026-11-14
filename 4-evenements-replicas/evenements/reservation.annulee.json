@@ -1,28 +1,56 @@
 {
   "evenement": {
     "id_evenement": "evt_0350",
+    "version_schema": 1,
+    "sequence_objet": 2,
     "type": "reservation.annulee",
     "date": "2026-10-06T18:20:00Z",
     "emetteur": "reservations",
-    "recepteurs": ["social"],
+    "recepteurs": [],
     "type_objet": "Reservation",
     "id_objet": "res_1002",
     "modifications": [
-      { "donnee": "statut", "nouvelle_valeur": "annulee" },
-      { "donnee": "billets.statut", "nouvelle_valeur": "annulee" },
-      { "donnee": "montant", "nouvelle_valeur": 0 },
+      { "donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "annulee" },
+      {
+        "donnee": "billets",
+        "operation": "remplacer",
+        "nouvelle_valeur": [
+          {
+            "billet_id": "bil_1002_1",
+            "place": "F9",
+            "tarif": "plein",
+            "prix": 11.50,
+            "titulaire_id": "client_77",
+            "statut": "annulee",
+            "justificatif_verifie": false,
+            "valide_le": null
+          }
+        ]
+      },
       {
         "donnee": "paiements",
-        "nouvelle_valeur": { "type": "remboursement", "montant": -11.50, "reference": "rmb_17", "date": "2026-10-06T18:20:00Z" }
+        "operation": "ajouter",
+        "nouvelle_valeur": {
+          "type": "remboursement",
+          "montant": -11.5,
+          "reference": "rmb_17",
+          "date": "2026-10-06T18:20:00Z"
+        }
       }
     ],
     "contexte": {
       "acheteur_id": "client_77",
+      "seance_id": "seance_42",
       "film_id": "film_dune2",
       "motif": "annulation_client"
     }
   },
-  "reactions": [
-    { "service": "social", "effet": "retire la relation VA_VOIR entre l'acheteur et le film" }
+  "reactions": [],
+  "regles": [
+    "cet exemple concerne une annulation par l'acheteur : identité vérifiée, réservation confirmee, aucun billet validé et au moins une heure avant le début ; une annulation cinéma suit les règles de seance.annulee",
+    "montant et les prix des billets restent inchangés ; le montant net payé devient 0 en additionnant paiement et remboursement",
+    "le remboursement est ajouté à la liste paiements avec une référence unique pour cette réservation",
+    "une réservation déjà annulée ne produit ni autre remboursement ni nouvel événement d'annulation",
+    "le statut, le remboursement, les copies de lecture, la libération conditionnelle des places et le message en attente de publication sont enregistrés dans une même transaction MongoDB ; les dates valide_le existantes restent conservées"
   ]
 }

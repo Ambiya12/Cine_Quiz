@@ -1,0 +1,47 @@
+{
+  "service": "quiz",
+  "base": "redis",
+  "commandes": [
+    {
+      "nom": "DemarrerQuiz",
+      "acteur": "spectateur",
+      "donnees": { "billet_id": "bil_981_2", "client_id": "client_12" },
+      "verifications": [
+        "le demandeur est authentifié et correspond au client_id de la tentative",
+        "la tentative est ouverte : la séance est terminée et le délai de 2 heures pour démarrer n'est pas dépassé",
+        "ou la tentative est déjà en cours : il s'agit d'une reconnexion"
+      ],
+      "effet": "premier démarrage : fige 10 questions tirées au hasard et l'ordre de leurs choix, puis envoie la première question ; reconnexion : rien n'est tiré ni réinitialisé, les questions expirées pendant l'absence sont comptées fausses et le serveur renvoie la question en cours",
+      "evenement": null
+    },
+    {
+      "nom": "RepondreQuestion",
+      "acteur": "spectateur",
+      "donnees": { "billet_id": "bil_981_2", "client_id": "client_12", "question_id": "q7", "choix_id": "b" },
+      "verifications": [
+        "le demandeur est authentifié et correspond au client_id de la tentative",
+        "la tentative est en cours",
+        "la question est la question en cours et ses 15 secondes ne sont pas écoulées",
+        "seule la première réponse à une question est prise en compte",
+        "le choix fait partie des choix de cette question"
+      ],
+      "effet": "enregistre la réponse, la corrige sur le serveur et envoie la question suivante ; la tentative se termine à la 10e question, donc au plus tard 150 secondes après le démarrage, même sans réponse",
+      "evenement": "quiz.termine"
+    },
+    {
+      "nom": "UtiliserCoupon",
+      "acteur": "agent",
+      "donnees": { "coupon_id": "cpn_55", "jeton_qr": "e94d...", "produit_choisi": "popcorn_moyen" },
+      "verifications": [
+        "le coupon existe et le jeton correspond",
+        "il n'a pas déjà été utilisé",
+        "il n'est pas expiré",
+        "le produit choisi fait partie des produits éligibles",
+        "il n'a pas été émis le même jour : il s'utilise lors d'une visite ultérieure",
+        "son titulaire a un billet validé aujourd'hui"
+      ],
+      "effet": "le coupon est marqué comme utilisé : produit_choisi et fournisseur_id sont enregistrés avec la date et l'heure ; un second scan est refusé, le coupon n'est donc jamais compté deux fois",
+      "evenement": "coupon.utilise"
+    }
+  ]
+}
