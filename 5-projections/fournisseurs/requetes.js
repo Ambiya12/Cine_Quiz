@@ -1,11 +1,9 @@
-
 // Projection Fournisseurs : ConsommationJournaliere
-// Source : événements coupon.utilise émis par le service quiz_fidelite.
+// Source : événements coupon.utilise émis par le service quiz.
 // Exemples prévus pour mongosh et un déploiement MongoDB en replica set,
 // nécessaire pour garantir l'atomicité de la transaction.
 
 const FUSEAU_CINEMA = "Europe/Paris";
-const DEVISE = "EUR";
 
 // Transforme un instant ISO 8601 en jour civil du cinéma.
 // Exemple : 2026-10-15T23:30:00Z devient le 2026-10-16 à Paris
@@ -38,13 +36,9 @@ function traiterCouponUtilise(evenement) {
   const fournisseurId = evenement.contexte?.fournisseur_id;
   const typeProduit = evenement.contexte?.produit_choisi;
   const filmOrigineId = evenement.contexte?.film_origine_id ?? null;
-  const valeurUnitaireCentimes = evenement.contexte?.valeur_unitaire_centimes;
 
   if (!idEvenement || !fournisseurId || !typeProduit) {
     throw new Error("L'événement doit contenir id_evenement, fournisseur_id et type produit.");
-  }
-  if (!Number.isSafeInteger(valeurUnitaireCentimes) || valeurUnitaireCentimes <= 0) {
-    throw new Error("valeur_unitaire_centimes doit être un entier strictement positif.");
   }
 
   const dateLocale = obtenirJourLocal(evenement.date);
@@ -70,23 +64,21 @@ function traiterCouponUtilise(evenement) {
           $setOnInsert: {
             fournisseur_id: fournisseurId,
             date_locale: dateLocale,
-            fuseau_horaire: FUSEAU_CINEMA,
-            devise: DEVISE
+            fuseau_horaire: FUSEAU_CINEMA
           },
           $inc: {
             [`${cheminProduit}.quantite`]: 1,
-            [`${cheminProduit}.valeur_totale_centimes`]: valeurUnitaireCentimes,
-            quantite_totale: 1,
-            valeur_totale_centimes: valeurUnitaireCentimes
+            quantite_totale: 1
           }
         },
         { upsert: true }
       );
     });
   } catch (erreur) {
-    // Une clé dupliquée signifie que cet événement a déjà été traité.
-    // Les autres erreurs doivent remonter pour permettre une nouvelle tentative.
-    if (erreur.code === 11000) {
+    // Une erreur d'index sur les compteurs ne prouve pas un doublon d'événement.
+    // Vérifier sa présence hors de la transaction annulée avant d'acquitter.
+    if (erreur.code === 11000 && db.getSiblingDB("fournisseurs")
+      .evenements_recus.findOne({ _id: idEvenement })) {
       return { statut: "deja_traite", id_evenement: idEvenement };
     }
     throw erreur;
@@ -103,9 +95,7 @@ function traiterCouponUtilise(evenement) {
   };
 }
 
-// Exemple d'événement conforme à l'enveloppe officielle.
-// Le champ valeur_unitaire_centimes est une évolution à ajouter à
-// evenement.contexte dans le contrat coupon.utilise.
+// Extrait de coupon.utilise : seules les quantités sont comptabilisées.
 const exempleEvenement = {
   id_evenement: "evt_0912",
   type: "coupon.utilise",
@@ -121,16 +111,15 @@ const exempleEvenement = {
   contexte: {
     produit_choisi: "popcorn_moyen",
     fournisseur_id: "fourn_popcorn_1",
-    film_origine_id: "film_dune2",
-    valeur_unitaire_centimes: 450
+    film_origine_id: "film_dune2"
   }
 };
 
-// À appeler une seule fois à la réception du message Redis Stream :
+// À appeler à la réception de coupon.utilise ; les doublons sont vérifiés :
 // traiterCouponUtilise(exempleEvenement);
 db = db.getSiblingDB("fournisseurs");
-// 1. Requête métier : quantités et valeur commerciale distribuées
-//    par produit sur le mois d'octobre pour un fournisseur.
+// 1. Requête métier : quantités distribuées par produit
+//    sur le mois d'octobre pour un fournisseur.
 db.consommations.aggregate([
   {
     $match: {
@@ -143,15 +132,14 @@ db.consommations.aggregate([
   {
     $group: {
       _id: "$produits.k",
-      quantite: { $sum: "$produits.v.quantite" },
-      valeur_totale_centimes: { $sum: "$produits.v.valeur_totale_centimes" }
+      quantite: { $sum: "$produits.v.quantite" }
     }
   },
   { $sort: { _id: 1 } }
 ]);
 
-// 2. Nouvelle analyse : quels films sont à l'origine de la plus grande
-//    valeur commerciale de produits distribués ? Les événements conservés
+// 2. Nouvelle analyse : quels films sont à l'origine du plus grand
+//    nombre de coupons utilisés ? Les événements conservés
 //    permettent cette analyse sans ajouter film_origine_id à la projection
 //    journalière agrégée.
 db.evenements_recus.aggregate([
@@ -164,11 +152,8 @@ db.evenements_recus.aggregate([
   {
     $group: {
       _id: "$evenement.contexte.film_origine_id",
-      coupons: { $sum: 1 },
-      valeur_totale_centimes: {
-        $sum: "$evenement.contexte.valeur_unitaire_centimes"
-      }
+      coupons: { $sum: 1 }
     }
   },
-  { $sort: { valeur_totale_centimes: -1 } }
+  { $sort: { coupons: -1 } }
 ]);
