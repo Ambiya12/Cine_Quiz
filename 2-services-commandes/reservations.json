@@ -28,12 +28,12 @@
         "billets": [
           {
             "place": "F7",
-            "tarif": "plein"
+            "tarif": "plein",
+            "titulaire_id": "client_40"
           },
           {
             "place": "F8",
-            "tarif": "reduit",
-            "titulaire_id": "client_40"
+            "tarif": "reduit"
           }
         ],
         "paiement_id": "pay_330",
@@ -86,22 +86,23 @@
       ],
       "effet": "le billet passe au statut validee ; le spectateur peut entrer",
       "evenement": "billet.valide"
-    },
-    {
-      "nom": "AnnulerSeance",
-      "acteur": "service (événement seance.annulee reçu du Catalogue)",
-      "donnees": {
-        "seance_id": "seance_42",
-        "id_evenement": "evt_42"
-      },
-      "verifications": [
-        "l’événement concerne une séance connue du réplica",
-        "l’id_evenement n’a pas déjà été traité"
-      ],
-      "effet": "À réception de seance.annulee avant la fin prévue de la séance, annule les réservations encore confirmées, même si un billet a été validé, et rembourse intégralement chacune une seule fois ; met à jour billets_par_seance. Le même id_evenement traité ne doit pas produire de nouvelles modifications.",
-      "repetition": "le même id_evenement ou une nouvelle tentative de remboursement ne produit aucun remboursement supplémentaire",
-      "evenement": "reservation.annulee"
     }
   ],
+
+    "reactions_aux_evenements": [
+    {
+      "evenement_recu": "seance.annulee",
+      "emetteur": "catalogue",
+      "donnees_utilisees": { "seance_id": "seance_57", "id_evenement": "evt_0090" },
+      "verifications": [
+        "l'événement concerne une séance connue du réplica",
+        "l'id_evenement n'a pas déjà été traité"
+      ],
+      "effet": "annule les réservations encore confirmées de la séance, même si un billet a été validé, et rembourse intégralement chacune une seule fois ; met à jour billets_par_seance ; le même id_evenement ne produit jamais de nouvelles modifications",
+      "repetition": "le même id_evenement ou une nouvelle tentative de remboursement ne produit aucun remboursement supplémentaire",
+      "evenement_publie": "reservation.annulee"
+    }
+  ],
+
   "gestion_evenements": "Redis Lists : RPUSH dans la liste ready ; LMOVE de ready vers processing ; après traitement, LREM pour acquitter. En cas d’arrêt avant acquittement, l’événement peut être remis dans ready et reçu à nouveau. Chaque id_evenement traité est mémorisé dans MongoDB avec les modifications correspondantes pour éviter un second effet métier. Attention : la mise à jour MongoDB et la publication dans Redis ne sont pas une seule opération atomique ; ce point reste une limite technique à signaler."
 }

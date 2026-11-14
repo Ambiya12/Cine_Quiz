@@ -95,9 +95,12 @@ function traiterCouponUtilise(evenement) {
   };
 }
 
-// Extrait de coupon.utilise : seules les quantités sont comptabilisées.
+
+// Copie conforme de coupon.utilise : seules les quantités sont comptabilisées.
 const exempleEvenement = {
   id_evenement: "evt_0912",
+  version_schema: 1,
+  sequence_objet: 2,
   type: "coupon.utilise",
   date: "2026-10-15T19:40:00Z",
   emetteur: "quiz",
@@ -105,8 +108,10 @@ const exempleEvenement = {
   type_objet: "Coupon",
   id_objet: "cpn_55",
   modifications: [
-    { donnee: "utilise", nouvelle_valeur: true },
-    { donnee: "utilise_le", nouvelle_valeur: "2026-10-15T19:40:00Z" }
+    { donnee: "produit_choisi", operation: "remplacer", nouvelle_valeur: "popcorn_moyen" },
+    { donnee: "fournisseur_id", operation: "remplacer", nouvelle_valeur: "fourn_popcorn_1" },
+    { donnee: "utilise", operation: "remplacer", nouvelle_valeur: true },
+    { donnee: "utilise_le", operation: "remplacer", nouvelle_valeur: "2026-10-15T19:40:00Z" }
   ],
   contexte: {
     produit_choisi: "popcorn_moyen",
