@@ -8,7 +8,16 @@ services:
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: echo "try { rs.status() } catch (err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongodb:27017'}]}) }" | mongosh --port 27017 --quiet
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh 'mongodb://127.0.0.1:27017/admin?directConnection=true' --quiet --eval '
+          try { rs.status() } catch (error) {
+            if (error.code !== 94) { throw error; }
+            rs.initiate({_id: "rs0", members: [{_id: 0, host: "mongodb:27017"}]});
+          }
+          const status = db.hello();
+          quit(status.setName === "rs0" && status.isWritablePrimary ? 0 : 1);'
       interval: 5s
       timeout: 30s
       retries: 30
@@ -27,6 +36,70 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  catalogue:
+    build:
+      context: .
+      dockerfile: services/catalogue/Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/?replicaSet=rs0
+      MONGO_DB: cinequiz_catalogue
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PREFIX: catalogue
+    ports:
+      - "127.0.0.1:8081:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  reservations:
+    build:
+      context: .
+      dockerfile: services/reservations/Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/?replicaSet=rs0
+      MONGO_DB: cinequiz_reservations
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PREFIX: reservations
+    ports:
+      - "127.0.0.1:8082:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  quiz:
+    build:
+      context: .
+      dockerfile: services/quiz/Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PREFIX: quiz
+    ports:
+      - "127.0.0.1:8083:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  fournisseurs:
+    build:
+      context: .
+      dockerfile: services/fournisseurs/Dockerfile
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/?replicaSet=rs0
+      MONGO_DB: cinequiz_fournisseurs
+      REDIS_URL: redis://redis:6379/0
+      REDIS_PREFIX: fournisseurs
+    ports:
+      - "127.0.0.1:8084:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   mongo-data:

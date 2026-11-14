@@ -34,7 +34,39 @@ Le service Quiz et coupons utilise l'identifiant `quiz` dans les contrats et les
 chemins du dépôt. Les identifiants des clients proviennent du prestataire
 d'authentification simulé ; la gestion des profils reste hors périmètre.
 
-Le dépôt décrit la conception ; il ne contient pas encore une application exécutable.
+Le socle exécutable lance Catalogue, Réservations, Quiz et Fournisseurs.
+Les commandes métier, les workers et les consommateurs Recherche et
+`application_spectateur` seront ajoutés dans les lots suivants.
+
+## Démarrage local
+
+Avec Docker et Docker Compose v2, lancer cette commande depuis la racine du dépôt.
+
+```sh
+docker compose up --build
+```
+
+| Service | Vérification dans Postman | Documentation OpenAPI |
+|---|---|---|
+| Catalogue | `GET http://localhost:8081/health` | [Swagger UI](http://localhost:8081/docs) |
+| Réservations | `GET http://localhost:8082/health` | [Swagger UI](http://localhost:8082/docs) |
+| Quiz | `GET http://localhost:8083/health` | [Swagger UI](http://localhost:8083/docs) |
+| Fournisseurs | `GET http://localhost:8084/health` | [Swagger UI](http://localhost:8084/docs) |
+
+Chaque route `/health` renvoie HTTP 200 avec le nom du service et `"statut": "ok"`
+si ses dépendances sont joignables, ou HTTP 503 sinon. Compose attend que Redis
+réponde et que MongoDB soit primaire dans le replica set `rs0` pour les services
+qui utilisent MongoDB.
+
+Les services partagent l'instance Redis via `REDIS_URL`. `REDIS_PREFIX` vaut le
+nom du service pour ses clés métier, par exemple `quiz:evenements_a_publier`.
+Les clés de transport conservent les noms du contrat, par exemple
+`evenements:quiz:ready`. Catalogue, Réservations et Fournisseurs utilisent
+`MONGO_URI` et une base par service, définie par `MONGO_DB`
+(`cinequiz_catalogue`, `cinequiz_reservations`, `cinequiz_fournisseurs`).
+
+Voir [l'interface commune des événements](services/commun/README.md) pour
+implémenter un producteur ou un consommateur.
 
 ## Équipe
 
@@ -56,6 +88,7 @@ Les dossiers suivent les étapes des consignes du projet.
 | `3-agregats/` | Les six agrégats, leurs lectures, clés de stockage et règles de conservation |
 | `4-evenements-replicas/` | Les événements entre services et les réplicas |
 | `5-projections/` | Les projections vers de nouveaux services et leurs requêtes (étape 6 des consignes) |
+| `services/` | Les API FastAPI et leur module commun |
 
 
 
