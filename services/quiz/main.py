@@ -132,7 +132,9 @@ t.reponses[q.question_id] = {choix_id=ARGV[4], correcte=correct, repondue_le=ARG
 if correct then t.score = (t.score or 0) + 1 end
 idx = idx + 1
 if idx > 10 then
- t.statut='terminee'; t.termine_le=ARGV[6]; t.recompense_traitee=false; redis.call('ZREM', KEYS[2], ARGV[1] .. '|question')
+ t.statut='a_finaliser'; t.termine_le=ARGV[6]
+ redis.call('ZREM', KEYS[2], ARGV[1] .. '|question')
+ redis.call('ZADD', KEYS[2], now, ARGV[1] .. '|finaliser')
 else
  t.index_question=idx; t.question_envoyee_le=ARGV[6]; t.question_echeance_ts=now+15
  redis.call('ZADD', KEYS[2], now+15, ARGV[1] .. '|question')
@@ -145,8 +147,17 @@ REWARD_LUA = r"""
 local raw=redis.call('HGET', KEYS[1], 'data')
 if not raw then return redis.error_reply('NOT_FOUND') end
 local t=cjson.decode(raw)
-if t.recompense_traitee then return cjson.encode(t) end
+if t.recompense_traitee then
+  t.statut='terminee'
+  redis.call('HSET', KEYS[1], 'data', cjson.encode(t))
+  redis.call('ZREM', KEYS[9], ARGV[8] .. '|finaliser')
+  return cjson.encode(t)
+end
+if t.statut ~= 'a_finaliser' and t.statut ~= 'terminee' then
+  return redis.error_reply('NOT_FINISHED')
+end
 local score=tonumber(t.score or 0)
+t.statut='terminee'
 t.recompense_traitee=true; t.recompense_decidee_le=ARGV[1]; t.coupon_id=cjson.null
 local quiz_event=cjson.decode(ARGV[5])
 quiz_event.sequence_objet=redis.call('INCR', KEYS[7])
@@ -170,6 +181,8 @@ local raw=redis.call('HGET', KEYS[1], 'data')
 if not raw then redis.call('ZREM', KEYS[3], ARGV[2] .. '|' .. ARGV[1]); return '{}' end
 local t=cjson.decode(raw)
 local action=ARGV[1]; local billet=ARGV[2]; local now=tonumber(ARGV[3])
+-- Retirer l'échéance traitée avant de programmer la suivante.
+redis.call('ZREM', KEYS[3], billet .. '|' .. action)
 if action == 'ouvrir' and t.statut == 'programmee' then
   if redis.call('SISMEMBER', KEYS[2], t.seance_id) == 1 then
     t.statut='annulee'; t.annulee_le=ARGV[4]
@@ -189,7 +202,8 @@ elseif action == 'question' and t.statut == 'en_cours' then
     if q and not t.reponses[q.question_id] then t.reponses[q.question_id]={choix_id=cjson.null, correcte=false, repondue_le=cjson.null} end
     idx=idx+1
     if idx > 10 then
-      t.statut='terminee'; t.termine_le=ARGV[4]
+      t.statut='a_finaliser'; t.termine_le=ARGV[4]
+      redis.call('ZADD', KEYS[3], now, billet .. '|finaliser')
     else
       t.index_question=idx; t.question_envoyee_le=t.question_echeance_ts
       t.question_echeance_ts=tonumber(t.question_echeance_ts)+15
@@ -198,7 +212,6 @@ elseif action == 'question' and t.statut == 'en_cours' then
   if t.statut == 'en_cours' then redis.call('ZADD', KEYS[3], t.question_echeance_ts, billet .. '|question') end
 end
 redis.call('HSET', KEYS[1], 'data', cjson.encode(t))
-redis.call('ZREM', KEYS[3], billet .. '|' .. action)
 return cjson.encode(t)
 """
 
@@ -318,8 +331,7 @@ def question_courante(t: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _finaliser_tentative(redis: Redis, billet_id: str, t: dict[str, Any]) -> dict[str, Any]:
-    """Décide la récompense une seule fois, dans le même script que les événements sortants."""
-    if t.get('recompense_traitee'): return t
+    """Finalise atomiquement le statut, l'événement et l'éventuel coupon."""
     now = maintenant(); decision = iso(now)
     quiz_event = {'id_evenement': 'evt_' + uuid.uuid4().hex, 'version_schema': 1, 'sequence_objet': 0,
         'type': 'quiz.termine', 'date': decision, 'emetteur': 'quiz', 'recepteurs': ['quiz'],
@@ -341,11 +353,12 @@ def _finaliser_tentative(redis: Redis, billet_id: str, t: dict[str, Any]) -> dic
         'type_objet':'Coupon','id_objet':coupon_id,
         'donnees':{k:coupon[k] for k in ('client_id','tentative_id','produits_eligibles','produit_choisi','film_origine_id','fournisseur_id','emis_le','expire_le','utilise')}}
     history = json_compact({'coupon_id':coupon_id,'tentative_id':billet_id,'emis_le':decision}) if coupon_id else ''
-    result = redis.eval(REWARD_LUA, 8,
+    result = redis.eval(REWARD_LUA, 9,
         f'{PREFIX}:tentative:{billet_id}', f'{PREFIX}:coupon:{coupon_id}', f'{PREFIX}:coupons:{t["client_id"]}',
         f'{PREFIX}:recompenses:{t["client_id"]}', f'{PREFIX}:coupon_token:{coupon_id}',
         f'{PREFIX}:evenements_a_publier', f'{PREFIX}:sequence:Tentative:{billet_id}', f'{PREFIX}:sequence:Coupon:{coupon_id}',
-        decision, coupon_id, json_compact(coupon), history, json_compact(quiz_event), json_compact(coupon_event), token)
+        f'{PREFIX}:echeances',
+        decision, coupon_id, json_compact(coupon), history, json_compact(quiz_event), json_compact(coupon_event), token, billet_id)
     return json.loads(result)
 
 
@@ -357,9 +370,26 @@ async def lifespan(application: FastAPI):
     application.state.redis_prefix = os.environ.get('REDIS_PREFIX', 'quiz')
     redis.ping()
 
-    # Le worker de publication est disponible dans services.commun.
-    # Le worker de livraison sera raccordé lorsque livraison.py sera fourni.
+    # Imports locaux : reception.py importe traiter_evenement depuis ce module.
+    # L'import local évite une importation circulaire au chargement de main.py.
+    from services.commun.livraison import Livraison
+    from services.quiz.reception import ReceptionRedis
+
     arret_publication = threading.Event()
+    arret_livraison = threading.Event()
+    livraison = Livraison(
+        redis,
+        ReceptionRedis(redis, application.state.redis_prefix),
+        application.state.redis_prefix,
+    )
+    thread_livraison = threading.Thread(
+        target=livraison.executer,
+        args=(arret_livraison,),
+        name='quiz-livraison',
+        daemon=True,
+    )
+    thread_livraison.start()
+
     publication = Publication(redis, BoiteEnvoiRedis(redis, application.state.redis_prefix), application.state.redis_prefix)
     thread_publication = threading.Thread(
         target=publication.executer,
@@ -374,7 +404,9 @@ async def lifespan(application: FastAPI):
     try:
         yield
     finally:
+        arret_livraison.set()
         arret_publication.set()
+        thread_livraison.join(timeout=5)
         thread_publication.join(timeout=5)
         task.cancel()
         try:
@@ -520,7 +552,7 @@ def repondre(billet_id: str, body: ReponseQuiz, request: Request, client: str = 
         raw = r.eval(ANSWER_LUA, 2, key(request, f'tentative:{billet_id}'), key(request, 'echeances'), billet_id, client,
                     body.question_id, body.choix_id, now.timestamp(), iso(now))
         t = json.loads(raw)
-        if t['statut'] == 'terminee': t = _finaliser_tentative(r, billet_id, t)
+        if t['statut'] == 'a_finaliser': t = _finaliser_tentative(r, billet_id, t)
     except RedisError as exc: raise erreur_redis(exc) from exc
     return {'billet_id': billet_id, 'statut': t['statut'], 'score_provisoire': t.get('score', 0),
             'question': question_courante(t), 'resultat': ({'score': t['score'], 'coupon_id': t.get('coupon_id')} if t['statut']=='terminee' else None)}
@@ -607,6 +639,9 @@ async def worker_echeances(app: FastAPI):
                     r.zrem(f'{PREFIX}:echeances', member)
                     continue
                 attempt = json.loads(attempt_raw)
+                if action == 'finaliser':
+                    _finaliser_tentative(r, billet, attempt)
+                    continue
                 event = {}
                 if action == 'ouvrir':
                     event = {'id_evenement':'evt_'+uuid.uuid4().hex,'version_schema':1,'sequence_objet':0,
@@ -620,8 +655,8 @@ async def worker_echeances(app: FastAPI):
                     f'{PREFIX}:seances_annulees', f'{PREFIX}:echeances', f'{PREFIX}:evenements_a_publier',
                     f'{PREFIX}:sequence:Tentative:{billet}', action, billet, now.timestamp(), iso(now), json_compact(event))
                 updated = json.loads(raw)
-                if updated.get('statut') == 'terminee':
-                    _finaliser_tentative(r, billet, updated)
+                # La dernière réponse expirée programme une échéance durable
+                # |finaliser ; le worker la traitera au prochain passage.
         except (RedisError, ValueError, KeyError, TypeError):
             # L'échéance reste durable et sera retentée au prochain passage.
             pass
