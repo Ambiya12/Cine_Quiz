@@ -1,4 +1,5 @@
 import unittest
+import json
 
 from redis.exceptions import RedisError
 
@@ -37,6 +38,45 @@ class RedisIndisponiblePuisDisponible:
         return None
 
 
+class RedisIndisponiblePendantAcquittement:
+    def __init__(self):
+        self.scripts = 0
+        self.message = json.dumps(
+            {
+                "id_evenement": "evt_deja_traite",
+                "version_schema": 1,
+                "sequence_objet": 1,
+                "type": "coupon.utilise",
+                "date": "2026-10-15T19:40:00Z",
+                "emetteur": "quiz",
+                "recepteurs": ["fournisseurs"],
+                "type_objet": "Coupon",
+                "id_objet": "cpn_test",
+                "modifications": [{"donnee": "utilise", "operation": "remplacer", "nouvelle_valeur": True}],
+            }
+        )
+
+    def register_script(self, script):
+        def enregistrer(**kwargs):
+            self.scripts += 1
+            return 1
+
+        return enregistrer
+
+    def lmove(self, source, destination, gauche, droite):
+        if (source, destination) == (cle_ready("fournisseurs"), cle_processing("fournisseurs")):
+            return self.message
+        return None
+
+    def lrem(self, cle, compte, message):
+        raise RedisError("Redis unavailable during acknowledgement")
+
+
+class ReceptionDejaTraitee:
+    def message_traite(self, id_evenement):
+        return "original-message"
+
+
 class LivraisonResilienceTest(unittest.TestCase):
     def test_worker_retries_when_redis_is_temporarily_unavailable(self):
         redis = RedisIndisponiblePuisDisponible()
@@ -70,6 +110,15 @@ class LivraisonResilienceTest(unittest.TestCase):
         livraison.executer(arret)
 
         self.assertIsNone(livraison._message_en_cours)
+
+    def test_redis_error_during_acknowledgement_does_not_consume_a_business_retry(self):
+        redis = RedisIndisponiblePendantAcquittement()
+        livraison = Livraison(redis, ReceptionDejaTraitee(), "fournisseurs", attente=0)
+
+        with self.assertRaises(RedisError):
+            livraison.livrer_suivant()
+
+        self.assertEqual(0, redis.scripts)
 
 
 if __name__ == "__main__":

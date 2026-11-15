@@ -97,6 +97,10 @@ class Livraison:
             self._acquitter(message, identifiant_essais)
             self._message_en_cours = None
             self._dernier_essai_a_echoue = False
+        except RedisError:
+            # Infrastructure failures are recovered by executer(). They are not
+            # business-processing attempts and must not consume the retry budget.
+            raise
         except Exception as erreur:
             identifiant_essais = self._identifiant_essais(message)
             if self._enregistrer_echec(message, identifiant_essais, erreur) >= MAX_ESSAIS:

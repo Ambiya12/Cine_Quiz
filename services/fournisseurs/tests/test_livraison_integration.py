@@ -4,7 +4,6 @@ import unittest
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from urllib.request import Request as RequeteHttp
-from urllib.parse import urlparse
 
 from pymongo import MongoClient
 from redis import Redis
@@ -35,11 +34,18 @@ def configuration_test() -> tuple[str, str, str, str]:
         raise RuntimeError("CINEQUIZ_TEST_MONGO_DB must be a dedicated cinequiz_test_* database.")
     if mongo_uri == os.environ.get("MONGO_URI") and mongo_db == os.environ.get("MONGO_DB"):
         raise RuntimeError("The test MongoDB configuration points to the application database.")
-    test_redis_db = urlparse(redis_url).path or "/0"
-    application_redis_db = urlparse(os.environ.get("REDIS_URL", "redis://unused/0")).path or "/0"
-    if redis_url == os.environ.get("REDIS_URL") or test_redis_db == application_redis_db:
-        raise RuntimeError("CINEQUIZ_TEST_REDIS_URL must use a dedicated Redis database.")
+    verifier_redis_dedie(redis_url, os.environ.get("REDIS_URL", "redis://unused/0"))
     return mongo_uri, mongo_db, redis_url, api_url.rstrip("/")
+
+
+def verifier_redis_dedie(redis_test_url: str, redis_application_url: str) -> None:
+    """Compare the database actually selected by Redis-py, before deleting keys."""
+    redis_test = Redis.from_url(redis_test_url)
+    redis_application = Redis.from_url(redis_application_url)
+    base_test = redis_test.connection_pool.connection_kwargs["db"]
+    base_application = redis_application.connection_pool.connection_kwargs["db"]
+    if base_test == base_application:
+        raise RuntimeError("CINEQUIZ_TEST_REDIS_URL resolves to the application Redis database.")
 
 
 def message(*, identifiant: str, sequence: int, type: str = "coupon.utilise", recepteurs=None, date="2026-10-15T23:30:00Z"):
