@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Annotated, Literal, Self
 
 from bson.decimal128 import Decimal128
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import (
     AfterValidator,
     AwareDatetime,
@@ -86,7 +86,11 @@ def tarifs_bson(tarifs: dict[str, Decimal]) -> dict[str, Decimal128]:
 
 
 def vue_seance(seance: dict) -> dict:
-    vue = {champ: valeur for champ, valeur in seance.items() if champ not in {"_id", "sequence_evenements"}}
+    vue = {
+        champ: valeur
+        for champ, valeur in seance.items()
+        if champ not in {"_id", "sequence_evenements", "tarifs_creation"}
+    }
     for champ in CHAMPS_HORAIRES:
         vue[champ] = date_utc(seance[champ]).isoformat().replace("+00:00", "Z")
     vue["tarifs"] = {nom: float(montant.to_decimal()) for nom, montant in seance["tarifs"].items()}
@@ -112,8 +116,8 @@ def reprendre_sequence(db: Database, session: ClientSession, seance: dict) -> No
         )
 
 
-@routeur.post("", status_code=201)
-def creer_seance(demande: DemandeSeance, request: Request) -> dict:
+@routeur.post("", status_code=201, responses={200: {"description": "Séance déjà créée"}})
+def creer_seance(demande: DemandeSeance, request: Request, response: Response) -> dict:
     db = request.app.state.db
     seance_id = generer_identifiant("seance")
     try:
@@ -122,8 +126,19 @@ def creer_seance(demande: DemandeSeance, request: Request) -> dict:
         raise HTTPException(422, detail="La date de début est hors de la plage UTC.") from erreur
     # Utiliser la même précision que BSON pour le stockage et l'événement.
     debut = debut.replace(microsecond=debut.microsecond // 1000 * 1000)
+    tarifs_demandes = demande.tarifs.model_dump()
 
-    def transaction(session: ClientSession) -> dict:
+    def transaction(session: ClientSession) -> tuple[dict, int]:
+        correspondances = db.seances.find(
+            {"salle_id": demande.salle_id, "debut": debut, "film_id": demande.film_id, "version": demande.version},
+            session=session,
+        )
+        for seance in correspondances:
+            # Une mise à jour des tarifs ne change pas la demande de création.
+            tarifs_creation = seance.get("tarifs_creation", seance["tarifs"])
+            if {nom: montant.to_decimal() for nom, montant in tarifs_creation.items()} == tarifs_demandes:
+                return vue_seance(seance), 200
+
         date = datetime.now(UTC)
         if debut <= date:
             raise HTTPException(422, detail="Le début de la séance doit être dans le futur.")
@@ -162,6 +177,7 @@ def creer_seance(demande: DemandeSeance, request: Request) -> dict:
         if chevauchement is not None:
             raise HTTPException(409, detail="La salle est déjà occupée sur ce créneau.")
 
+        tarifs = tarifs_bson(tarifs_demandes)
         seance = {
             "seance_id": seance_id,
             "film_id": demande.film_id,
@@ -171,7 +187,8 @@ def creer_seance(demande: DemandeSeance, request: Request) -> dict:
             "fin": fin,
             "fin_occupation": fin_occupation,
             "version": demande.version,
-            "tarifs": tarifs_bson(demande.tarifs.model_dump()),
+            "tarifs": tarifs,
+            "tarifs_creation": tarifs,
             "statut": "programmee",
         }
         db.seances.insert_one(seance, session=session)
@@ -187,10 +204,12 @@ def creer_seance(demande: DemandeSeance, request: Request) -> dict:
             donnees={champ: valeur for champ, valeur in vue.items() if champ != "seance_id"},
             contexte={"titre_film": film["titre"], "plan": salle["plan"]},
         )
-        return vue
+        return vue, 201
 
     with db.client.start_session() as session:
-        return session.with_transaction(transaction)
+        vue, code_statut = session.with_transaction(transaction)
+    response.status_code = code_statut
+    return vue
 
 
 @routeur.patch("/{seance_id}")
@@ -211,11 +230,15 @@ def modifier_seance(seance_id: str, demande: ModificationSeance, request: Reques
         if tarifs == tarifs_actuels:
             return vue_seance(seance)
 
+        tarifs_creation = seance.get("tarifs_creation", seance["tarifs"])
         seance["tarifs"] = tarifs_bson(tarifs)
         reprendre_sequence(db, session, seance)
         db.seances.update_one(
             {"seance_id": seance_id},
-            {"$set": {"tarifs": seance["tarifs"]}, "$unset": {"sequence_evenements": ""}},
+            {
+                "$set": {"tarifs": seance["tarifs"], "tarifs_creation": tarifs_creation},
+                "$unset": {"sequence_evenements": ""},
+            },
             session=session,
         )
         vue = vue_seance(seance)
