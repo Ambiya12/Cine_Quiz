@@ -5,6 +5,7 @@ import logging
 import threading
 
 from redis import Redis
+from redis.exceptions import RedisError
 
 from services.commun.evenements import Evenement, Reception
 
@@ -67,6 +68,7 @@ class Livraison:
         self._attente = attente
         self._script_echec = redis.register_script(SCRIPT_ECHEC)
         self._message_en_cours: str | None = None
+        self._dernier_essai_a_echoue = False
 
     def reprendre_processing(self) -> None:
         """Put work left by a stopped worker back at the front of ready, in FIFO order."""
@@ -94,19 +96,33 @@ class Livraison:
                 self._reception.appliquer(evenement, message, precedente)
             self._acquitter(message, identifiant_essais)
             self._message_en_cours = None
+            self._dernier_essai_a_echoue = False
         except Exception as erreur:
             identifiant_essais = self._identifiant_essais(message)
             if self._enregistrer_echec(message, identifiant_essais, erreur) >= MAX_ESSAIS:
                 self._message_en_cours = None
+            self._dernier_essai_a_echoue = True
             logger.exception("Delivery failed for %s", self._recepteur)
         return True
 
     def executer(self, arret: threading.Event) -> None:
         """Recover interrupted work, then deliver messages until the stop event is set."""
-        self.reprendre_processing()
+        repris = False
         while not arret.is_set():
-            if self.livrer_suivant():
-                continue
+            try:
+                if not repris:
+                    self.reprendre_processing()
+                    repris = True
+                if self.livrer_suivant():
+                    if self._dernier_essai_a_echoue:
+                        arret.wait(self._attente)
+                    continue
+            except RedisError:
+                # Re-run processing recovery after Redis reconnects: a command may
+                # have succeeded server-side just before its connection was lost.
+                repris = False
+                self._message_en_cours = None
+                logger.exception("Redis unavailable for %s, retrying", self._recepteur)
             arret.wait(self._attente)
 
     def _completer_sequences(self, evenement: Evenement) -> int:
