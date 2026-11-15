@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "fdccfe28-a2e9-47ef-bb72-b00e739eeabc",
+    "_postman_id": "f2aefc89-19bb-44fd-8209-cd2e5953ec2a",
     "name": "CinéQuiz",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "42818534"
@@ -146,6 +146,47 @@
             "body": {
               "mode": "raw",
               "raw": "{\r\n  \"synopsis\": \"Paul Atreides s'allie aux Fremen.\",\r\n  \"genres\": [\"science-fiction\", \"aventure\"],\r\n  \"duree_min\": 166,\r\n  \"debut_generique_min\": 158\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un film : durée trop grande",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Durée trop grande refusée (422)\", () => pm.response.to.have.status(422));\r",
+                  "pm.test(\"L'erreur porte sur duree_min\", () =>\r",
+                  "    pm.expect(pm.response.json().detail[0].loc).to.eql([\"body\", \"duree_min\"]));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titre\": \"Durée trop grande\",\r\n  \"duree_min\": 9223372036854775808,\r\n  \"debut_generique_min\": 10\r\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -427,6 +468,48 @@
             "body": {
               "mode": "raw",
               "raw": "{ \"debut_generique_min\": 170 }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier : durée trop grande",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Modification refusée (422)\", () => pm.response.to.have.status(422));\r",
+                  "pm.test(\"L'erreur porte sur duree_min\", () =>\r",
+                  "    pm.expect(pm.response.json().detail[0].loc).to.eql([\"body\", \"duree_min\"]));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"duree_min\": 9223372036854775808 }",
               "options": {
                 "raw": {
                   "language": "json"

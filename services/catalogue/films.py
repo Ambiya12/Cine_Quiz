@@ -21,7 +21,7 @@ TYPE_OBJET = "Film"
 CHAMPS_TECHNIQUES = {"_id", "version_programmation"}
 
 Texte = Annotated[str, Field(min_length=1)]
-EntierPositif = Annotated[int, Field(strict=True, gt=0)]
+EntierPositif = Annotated[int, Field(strict=True, gt=0, le=2**63 - 1)]
 
 
 # ---------------------------------------------------------------- Modèles des commandes
