@@ -20,6 +20,25 @@ Chaque producteur fournit un objet compatible avec le protocole `BoiteEnvoi`.
 | `prochain_message()` | Renvoyer le plus ancien JSON en attente ou `None`. Garder le message en attente tant que sa publication n'est pas confirmée. |
 | `confirmer_publication(id_evenement)` | Marquer comme publié le message correspondant à cet identifiant. Le worker appelle cette méthode après l'envoi Redis. |
 
+## Publication
+
+`Publication(redis, boite, emetteur)` dans `services.commun.publication` est le
+worker unique d'un émetteur. `executer(arret)` publie les messages dans l'ordre
+jusqu'à ce que le `threading.Event` `arret` soit levé ; un échec est retenté avec
+le même message, sans passer au suivant.
+
+Un script Lua vérifie les types des clés, puis, en une seule opération :
+
+| Clé | Type | Contenu |
+|---|---|---|
+| `evenements:{emetteur}:journal` | Stream | Une entrée par message, champs `id_evenement` et `message` (JSON d'origine) |
+| `evenements:{emetteur}:publies` | Hash | `id_evenement` → identifiant de l'entrée du journal |
+| `evenements:{recepteur}:ready` | List | Le JSON d'origine, ajouté avec `RPUSH` pour chaque récepteur |
+
+Un message déjà présent dans `publies` n'est ni rajouté au journal ni
+redistribué : une panne entre l'envoi et `confirmer_publication` ne crée donc pas
+de copie. Un même `id_evenement` avec un autre contenu est refusé (`CONFLIT`).
+
 ## Consommateurs
 
 Chaque consommateur fournit un objet compatible avec le protocole `Reception`.
