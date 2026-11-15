@@ -63,6 +63,8 @@ services:
       MONGO_DB: cinequiz_reservations
       REDIS_URL: redis://redis:6379/0
       REDIS_PREFIX: reservations
+      # Active POST /dev/evenements pour injecter les exemples d'événements.
+      CINEQUIZ_DEV: "1"
     ports:
       - "127.0.0.1:8082:8000"
     depends_on:
