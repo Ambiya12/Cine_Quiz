@@ -8,6 +8,7 @@ from pymongo.client_session import ClientSession
 from pymongo.database import Database
 
 from services.commun.evenements import Evenement
+from services.commun.publication import cle_journal
 from services.reservations.stockage import SERVICE, annuler_reservation, date_iso, maintenant
 
 CHAMPS_REPLICA = {"film_id", "titre_film", "salle_id", "debut", "debut_generique", "fin", "version", "tarifs", "plan", "statut"}
@@ -153,7 +154,7 @@ class ReceptionReservations:
         self._transaction(terminer)
 
 
-# Injection manuelle d'événements, en attendant le worker de livraison.
+# Outils de test : injection manuelle d'événements et lecture du journal publié.
 routeur_dev = APIRouter(prefix="/dev", tags=["développement"])
 MODE_DEV = os.environ.get("CINEQUIZ_DEV") == "1"
 
@@ -172,3 +173,17 @@ def recevoir_evenement(corps: dict[str, Any], request: Request) -> dict[str, Any
     except (ValueError, LookupError, RuntimeError) as erreur:
         raise HTTPException(409, detail=str(erreur)) from erreur
     return {"id_evenement": evenement.id_evenement, "resultat": "traite"}
+
+
+@routeur_dev.get("/journal")
+def lire_journal(request: Request, type: str | None = None, id_objet: str | None = None) -> list[dict[str, Any]]:
+    """Messages publiés dans evenements:reservations:journal, pour vérifier la publication."""
+    messages = (
+        json.loads(champs["message"])
+        for _, champs in request.app.state.redis.xrange(cle_journal(SERVICE))
+    )
+    return [
+        message
+        for message in messages
+        if (type is None or message["type"] == type) and (id_objet is None or message["id_objet"] == id_objet)
+    ]

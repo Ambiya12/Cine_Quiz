@@ -201,6 +201,35 @@
       ] } }]
     },
     {
+      "name": "13 bis. Vérifier billet.valide dans le journal Redis",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/dev/journal?type=billet.valide&id_objet={{reservation_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["dev", "journal"],
+          "query": [
+            { "key": "type", "value": "billet.valide" },
+            { "key": "id_objet", "value": "{{reservation_id}}" }
+          ]
+        }
+      },
+      "event": [
+        { "listen": "prerequest", "script": { "type": "text/javascript", "exec": [
+          "// Le worker de publication envoie la boîte d'envoi toutes les 0,5 s.",
+          "setTimeout(() => {}, 1500);"
+        ] } },
+        { "listen": "test", "script": { "type": "text/javascript", "exec": [
+          "const messages = pm.response.json();",
+          "const pour = id => messages.filter(m => m.contexte.billet_id === id);",
+          "pm.test('billet.valide publié une seule fois pour F7', () => pm.expect(pour(pm.collectionVariables.get('billet_f7'))).to.have.lengthOf(1));",
+          "pm.test('billet.valide publié une seule fois pour F8', () => pm.expect(pour(pm.collectionVariables.get('billet_f8'))).to.have.lengthOf(1));",
+          "pm.test('destiné au quiz', () => messages.forEach(m => pm.expect(m.recepteurs).to.eql(['quiz'])));",
+          "pm.test('aucun jeton QR publié', () => messages.forEach(m => m.modifications[0].nouvelle_valeur.forEach(b => pm.expect(b).to.not.have.property('jeton_qr'))));"
+        ] } }
+      ]
+    },
+    {
       "name": "14. Annulation par l'acheteur après une entrée (refus)",
       "request": {
         "method": "POST",
