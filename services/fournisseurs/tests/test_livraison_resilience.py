@@ -16,6 +16,11 @@ class ArretApresDeuxAttentes:
         self.attentes += 1
 
 
+class ArretApresUneAttente(ArretApresDeuxAttentes):
+    def is_set(self) -> bool:
+        return self.attentes >= 1
+
+
 class RedisIndisponiblePuisDisponible:
     def __init__(self):
         self.appels: list[tuple[str, str]] = []
@@ -45,6 +50,26 @@ class LivraisonResilienceTest(unittest.TestCase):
         self.assertEqual(2, redis.appels.count(prise))
         self.assertEqual(2, redis.appels.count(reprise))
         self.assertEqual(2, arret.attentes)
+
+    def test_redis_error_discards_stale_in_memory_message_before_recovery(self):
+        redis = RedisIndisponiblePuisDisponible()
+        redis.echec = True
+        arret = ArretApresUneAttente()
+        livraison = Livraison(redis, reception=object(), recepteur="fournisseurs", attente=0)
+        livraison._message_en_cours = "message-before-disconnect"
+
+        # The first failure occurs during processing recovery, before a message can
+        # be delivered again. The stale in-memory pointer must not survive it.
+        original_lmove = redis.lmove
+
+        def redis_down_once(source, destination, gauche, droite):
+            redis.lmove = original_lmove
+            raise RedisError("Redis unavailable during acknowledgement")
+
+        redis.lmove = redis_down_once
+        livraison.executer(arret)
+
+        self.assertIsNone(livraison._message_en_cours)
 
 
 if __name__ == "__main__":

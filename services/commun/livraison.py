@@ -121,6 +121,7 @@ class Livraison:
                 # Re-run processing recovery after Redis reconnects: a command may
                 # have succeeded server-side just before its connection was lost.
                 repris = False
+                self._message_en_cours = None
                 logger.exception("Redis unavailable for %s, retrying", self._recepteur)
             arret.wait(self._attente)
 
