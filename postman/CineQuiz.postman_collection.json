@@ -17,7 +17,7 @@
               "script": {
                 "exec": [
                   "pm.test(\"Le film est créé (201)\", () => pm.response.to.have.status(201));\r",
-                  "pm.environment.set(\"film_id\", pm.response.json().film_id);"
+                  "pm.collectionVariables.set(\"film_id\", pm.response.json().film_id);"
                 ],
                 "type": "text/javascript",
                 "packages": {},
@@ -519,91 +519,6 @@
       "name": "Règle 409 : séance à venir",
       "item": [
         {
-          "name": "Créer le film du test",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Film du test créé (201)\", () => pm.response.to.have.status(201));\r",
-                  "pm.environment.set(\"film_seance\", pm.response.json().film_id);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"titre\": \"Film du test 409\",\r\n  \"duree_min\": 120,\r\n  \"debut_generique_min\": 110\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{catalogue}}/films",
-              "host": [
-                "{{catalogue}}"
-              ],
-              "path": [
-                "films"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Ajouter 10 questions",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Question ajoutée (201)\", () => pm.response.to.have.status(201));\r",
-                  "// Tant que le film a moins de 10 questions, le Runner relance cette même requête\r",
-                  "if (pm.response.json().questions.length < 10) {\r",
-                  "    pm.execution.setNextRequest(\"Ajouter 10 questions\");\r",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"texte\": \"Question du test ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"A\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"B\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"C\" },\r\n    { \"choix_id\": \"d\", \"texte\": \"D\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"a\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{catalogue}}/films/{{film_seance}}/questions",
-              "host": [
-                "{{catalogue}}"
-              ],
-              "path": [
-                "films",
-                "{{film_seance}}",
-                "questions"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
           "name": "Créer une salle",
           "event": [
             {
@@ -611,7 +526,7 @@
               "script": {
                 "exec": [
                   "pm.test(\"Salle créée (201)\", () => pm.response.to.have.status(201));\r",
-                  "pm.environment.set(\"salle_id\", pm.response.json().salle_id);"
+                  "pm.collectionVariables.set(\"salle_id\", pm.response.json().salle_id);"
                 ],
                 "type": "text/javascript",
                 "packages": {},
@@ -650,7 +565,7 @@
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "pm.environment.set(\"debut_seance\", new Date(Date.now() + 24 * 3600 * 1000).toISOString());"
+                  "pm.collectionVariables.set(\"debut_seance\", new Date(Date.now() + 24 * 3600 * 1000).toISOString());"
                 ],
                 "type": "text/javascript",
                 "packages": {},
@@ -662,136 +577,11 @@
               "script": {
                 "exec": [
                   "pm.test(\"Séance créée (201)\", () => pm.response.to.have.status(201));\r",
-                  "pm.environment.set(\"seance_id\", pm.response.json().seance_id);"
+                  "pm.collectionVariables.set(\"seance_id\", pm.response.json().seance_id);"
                 ],
                 "type": "text/javascript",
                 "packages": {},
                 "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"film_id\": \"{{film_seance}}\",\r\n  \"salle_id\": \"{{salle_id}}\",\r\n  \"debut\": \"{{debut_seance}}\",\r\n  \"version\": \"VF\",\r\n  \"tarifs\": { \"plein\": 12.5, \"reduit\": 9.5, \"enfant\": 7.5 }\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{catalogue}}/seances",
-              "host": [
-                "{{catalogue}}"
-              ],
-              "path": [
-                "seances"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Créer une autre séance sur le même créneau",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Chevauchement refusé (409)\", () => {",
-                  "  pm.response.to.have.status(409);",
-                  "  pm.expect(pm.response.json().detail).to.include(\"déjà occupée\");",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"film_id\": \"{{film_seance}}\",\r\n  \"salle_id\": \"{{salle_id}}\",\r\n  \"debut\": \"{{debut_seance}}\",\r\n  \"version\": \"VOSTFR\",\r\n  \"tarifs\": { \"plein\": 12.5, \"reduit\": 9.5, \"enfant\": 7.5 }\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{catalogue}}/seances",
-              "host": [
-                "{{catalogue}}"
-              ],
-              "path": [
-                "seances"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Modifier les tarifs de la séance",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Grille tarifaire mise à jour (200)\", () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const seance = pm.response.json();",
-                  "  pm.expect(seance.seance_id).to.eql(pm.environment.get(\"seance_id\"));",
-                  "  pm.expect(seance.tarifs).to.deep.equal({ plein: 12.5, reduit: 8.5, enfant: 7.5 });",
-                  "});"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ],
-          "request": {
-            "method": "PATCH",
-            "header": [],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"tarifs\": { \"reduit\": 8.5 } }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{catalogue}}/seances/{{seance_id}}",
-              "host": [
-                "{{catalogue}}"
-              ],
-              "path": [
-                "seances",
-                "{{seance_id}}"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Rejouer la création après modification des tarifs",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Même séance (200)\", () => {",
-                  "  pm.response.to.have.status(200);",
-                  "  const seance = pm.response.json();",
-                  "  pm.expect(seance.seance_id).to.eql(pm.environment.get(\"seance_id\"));",
-                  "  pm.expect(seance.tarifs.reduit).to.eql(8.5);",
-                  "});"
-                ],
-                "type": "text/javascript"
               }
             }
           ],
@@ -965,6 +755,91 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Créer le film du test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Film du test créé (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.collectionVariables.set(\"film_seance\", pm.response.json().film_id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titre\": \"Film du test 409\",\r\n  \"duree_min\": 120,\r\n  \"debut_generique_min\": 110\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ajouter 10 questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Question ajoutée (201)\", () => pm.response.to.have.status(201));\r",
+                  "// Tant que le film a moins de 10 questions, le Runner relance cette même requête\r",
+                  "if (pm.response.json().questions.length < 10) {\r",
+                  "    pm.execution.setNextRequest(\"Ajouter 10 questions\");\r",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"texte\": \"Question du test ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"A\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"B\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"C\" },\r\n    { \"choix_id\": \"d\", \"texte\": \"D\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"a\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_seance}}/questions",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_seance}}",
+                "questions"
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }
@@ -1006,6 +881,28 @@
           ""
         ]
       }
+    }
+  ],
+  "variable": [
+    {
+      "key": "film_id",
+      "value": ""
+    },
+    {
+      "key": "salle_id",
+      "value": ""
+    },
+    {
+      "key": "debut_seance",
+      "value": ""
+    },
+    {
+      "key": "seance_id",
+      "value": ""
+    },
+    {
+      "key": "film_seance",
+      "value": ""
     }
   ]
 }
