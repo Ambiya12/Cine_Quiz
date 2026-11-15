@@ -56,7 +56,7 @@ def cle_blocage(request: Request, seance_id: str, place: str) -> str:
 
 
 def place_existe(plan: dict[str, Any], place: str) -> bool:
-    correspondance = PLACE.match(place)
+    correspondance = PLACE.fullmatch(place)
     if correspondance is None:
         return False
     rangee, numero = correspondance.group(1), int(correspondance.group(2))
@@ -161,26 +161,10 @@ def confirmer_reservation(
     date = maintenant()
     suffixe = uuid.uuid4().hex[:12]
     reservation_id = f"res_{suffixe}"
-    billets = [
-        {
-            "billet_id": f"bil_{suffixe}_{rang}",
-            "place": billet.place,
-            "tarif": billet.tarif,
-            "prix": seance["tarifs"][billet.tarif],
-            "titulaire_id": billet.titulaire_id or client_id,
-            "jeton_qr": secrets.token_urlsafe(24),
-            "statut": "payee",
-            "justificatif_verifie": False,
-            "valide_le": None,
-        }
-        for rang, billet in enumerate(demande.billets, start=1)
-    ]
-    montant = round(sum(billet["prix"] for billet in billets), 2)
-    # Paiement simulé : le prestataire accepte le montant total de la réservation.
-    paiement = {"type": "paiement", "montant": montant, "reference": demande.paiement_id, "date": date_iso(date)}
 
     def transaction(session):
-        # Écrire le réplica fait entrer cette confirmation en conflit avec une annulation de séance.
+        # Écrire le réplica fait entrer cette confirmation en conflit avec une annulation de séance
+        # ou une modification des tarifs ; les prix viennent de la grille lue dans la transaction.
         seance_courante = db.seances_replica.find_one_and_update(
             {"seance_id": demande.seance_id, "statut": "programmee"},
             {"$inc": {"version_ventes": 1}},
@@ -188,6 +172,27 @@ def confirmer_reservation(
             session=session,
         )
         verifier_seance_ouverte(seance_courante)
+        tarifs = seance_courante["tarifs"]
+        for billet in demande.billets:
+            if billet.tarif not in tarifs:
+                raise HTTPException(422, detail=f"Le tarif {billet.tarif} n'existe pas pour cette séance.")
+        billets = [
+            {
+                "billet_id": f"bil_{suffixe}_{rang}",
+                "place": billet.place,
+                "tarif": billet.tarif,
+                "prix": tarifs[billet.tarif],
+                "titulaire_id": billet.titulaire_id or client_id,
+                "jeton_qr": secrets.token_urlsafe(24),
+                "statut": "payee",
+                "justificatif_verifie": False,
+                "valide_le": None,
+            }
+            for rang, billet in enumerate(demande.billets, start=1)
+        ]
+        montant = round(sum(billet["prix"] for billet in billets), 2)
+        # Paiement simulé : le prestataire accepte le montant total de la réservation.
+        paiement = {"type": "paiement", "montant": montant, "reference": demande.paiement_id, "date": date_iso(date)}
         # Un insert_one par place : l'index unique (seance_id, place) lève DuplicateKeyError.
         for b in billets:
             db.billets_par_seance.insert_one(
@@ -253,7 +258,7 @@ def confirmer_reservation(
                 "montant": montant,
                 "billets": billets_publics(billets),
             },
-            contexte={"film_id": seance["film_id"], "debut_seance": seance["debut"]},
+            contexte={"film_id": seance_courante["film_id"], "debut_seance": seance_courante["debut"]},
         )
         return reservation
 
