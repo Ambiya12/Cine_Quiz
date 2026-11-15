@@ -1,3 +1,4 @@
+
 {
   "agregat": "Film",
   "service": "catalogue",
@@ -12,7 +13,8 @@
     "duree_min et debut_generique_min ne changent pas tant qu'une séance programmee est à venir pour ce film",
     "chaque question a exactement 4 choix et une seule bonne réponse",
     "chaque choix possède un choix_id unique dans sa question et indépendant de sa position ; bonne_reponse_id désigne le choix correct",
-    "un film retiré de l'affiche est conservé, jamais supprimé"
+    "un film retiré de l'affiche est conservé, jamais supprimé",
+    "sequence_evenements est le numéro du dernier événement publié pour ce film : 1 à sa création avec film.cree, puis augmenté de 1 dans la même transaction MongoDB que chaque film.modifie"
   ],
   "references": [],
   "exemple": {
@@ -23,6 +25,7 @@
     "duree_min": 166,
     "debut_generique_min": 158,
     "a_l_affiche": true,
+    "sequence_evenements": 2,
     "casting": [{ "acteur": "Timothée Chalamet", "role": "Paul Atreides" }],
     "questions": [
       {
