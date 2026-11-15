@@ -18,11 +18,12 @@ from pymongo.client_session import ClientSession
 from pymongo.database import Database
 
 from services.catalogue.acces import gerant_authentifie
-from services.catalogue.boite_envoi import enregistrer_evenement, generer_identifiant
+from services.catalogue.boite_envoi import SERVICE, enregistrer_evenement, generer_identifiant
 
 routeur = APIRouter(prefix="/seances", tags=["séances"], dependencies=[Depends(gerant_authentifie)])
 
 DUREE_NETTOYAGE = timedelta(minutes=15)
+TYPE_OBJET = "Seance"
 DESTINATAIRES = ("reservations", "recherche")
 CHAMPS_HORAIRES = ("debut", "debut_generique", "fin", "fin_occupation")
 Identifiant = Annotated[str, StringConstraints(min_length=1)]
@@ -99,6 +100,18 @@ def charger_seance(db: Database, session: ClientSession, seance_id: str) -> dict
     return seance
 
 
+def reprendre_sequence(db: Database, session: ClientSession, seance: dict) -> None:
+    """Reprend le compteur des séances enregistrées avant le compteur partagé."""
+    sequence_precedente = seance.get("sequence_evenements")
+    if sequence_precedente is not None:
+        db.sequences.update_one(
+            {"_id": f"{SERVICE}:{TYPE_OBJET}:{seance['seance_id']}"},
+            {"$max": {"valeur": sequence_precedente}},
+            upsert=True,
+            session=session,
+        )
+
+
 @routeur.post("", status_code=201)
 def creer_seance(demande: DemandeSeance, request: Request) -> dict:
     db = request.app.state.db
@@ -167,7 +180,7 @@ def creer_seance(demande: DemandeSeance, request: Request) -> dict:
             db,
             session,
             type="seance.creee",
-            type_objet="Seance",
+            type_objet=TYPE_OBJET,
             id_objet=seance_id,
             recepteurs=list(DESTINATAIRES),
             date=date,
@@ -199,20 +212,23 @@ def modifier_seance(seance_id: str, demande: ModificationSeance, request: Reques
             return vue_seance(seance)
 
         seance["tarifs"] = tarifs_bson(tarifs)
-        filtre = {"seance_id": seance_id}
-        db.seances.update_one(filtre, {"$set": {"tarifs": seance["tarifs"]}}, session=session)
+        reprendre_sequence(db, session, seance)
+        db.seances.update_one(
+            {"seance_id": seance_id},
+            {"$set": {"tarifs": seance["tarifs"]}, "$unset": {"sequence_evenements": ""}},
+            session=session,
+        )
         vue = vue_seance(seance)
         enregistrer_evenement(
             db,
             session,
             type="seance.modifiee",
-            type_objet="Seance",
+            type_objet=TYPE_OBJET,
             id_objet=seance_id,
             recepteurs=list(DESTINATAIRES),
             date=date,
             modifications=[{"donnee": "tarifs", "operation": "remplacer", "nouvelle_valeur": vue["tarifs"]}],
             contexte={"film_id": seance["film_id"]},
-            sequence_precedente=seance.get("sequence_evenements", 0),
         )
         return vue
 
@@ -233,19 +249,22 @@ def annuler_seance(seance_id: str, demande: DemandeAnnulation, request: Request)
             raise HTTPException(409, detail="La séance est déjà terminée.")
 
         seance["statut"] = "annulee"
-        filtre = {"seance_id": seance_id}
-        db.seances.update_one(filtre, {"$set": {"statut": "annulee"}}, session=session)
+        reprendre_sequence(db, session, seance)
+        db.seances.update_one(
+            {"seance_id": seance_id},
+            {"$set": {"statut": "annulee"}, "$unset": {"sequence_evenements": ""}},
+            session=session,
+        )
         enregistrer_evenement(
             db,
             session,
             type="seance.annulee",
-            type_objet="Seance",
+            type_objet=TYPE_OBJET,
             id_objet=seance_id,
             recepteurs=["reservations", "quiz", "recherche"],
             date=date,
             modifications=[{"donnee": "statut", "operation": "remplacer", "nouvelle_valeur": "annulee"}],
             contexte={"film_id": seance["film_id"], "motif": demande.motif},
-            sequence_precedente=seance.get("sequence_evenements", 0),
         )
         return vue_seance(seance)
 
