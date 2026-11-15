@@ -130,7 +130,13 @@ def creer_seance(demande: DemandeSeance, request: Request, response: Response) -
 
     def transaction(session: ClientSession) -> tuple[dict, int]:
         correspondances = db.seances.find(
-            {"salle_id": demande.salle_id, "debut": debut, "film_id": demande.film_id, "version": demande.version},
+            {
+                "salle_id": demande.salle_id,
+                "debut": debut,
+                "film_id": demande.film_id,
+                "version": demande.version,
+                "statut": "programmee",
+            },
             session=session,
         )
         for seance in correspondances:

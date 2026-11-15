@@ -934,6 +934,92 @@
           "response": []
         },
         {
+          "name": "Reprogrammer la séance annulée sur le même créneau",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Une nouvelle séance est créée (201)\", () => pm.response.to.have.status(201));\r",
+                  "const nouvelleSeance = pm.response.json();\r",
+                  "pm.test(\"La nouvelle séance a un identifiant différent\", () => {\r",
+                  "    pm.expect(nouvelleSeance.seance_id).to.be.a(\"string\");\r",
+                  "    pm.expect(nouvelleSeance.seance_id).to.not.eql(pm.collectionVariables.get(\"seance_id\"));\r",
+                  "});\r",
+                  "pm.test(\"La nouvelle séance est programmée\", () => pm.expect(nouvelleSeance.statut).to.eql(\"programmee\"));\r",
+                  "if (pm.response.code === 201) pm.collectionVariables.set(\"seance_id\", nouvelleSeance.seance_id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"film_id\": \"{{film_seance}}\",\r\n  \"salle_id\": \"{{salle_id}}\",\r\n  \"debut\": \"{{debut_seance}}\",\r\n  \"version\": \"VF\",\r\n  \"tarifs\": { \"plein\": 12.5, \"reduit\": 9.5, \"enfant\": 7.5 }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/seances",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "seances"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Annuler la séance reprogrammée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Séance annulée (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Statut annulee\", () => pm.expect(pm.response.json().statut).to.eql(\"annulee\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"motif\": \"Séance de test\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/seances/{{seance_id}}/annulation",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "seances",
+                "{{seance_id}}",
+                "annulation"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
           "name": "Retirer de l’affiche : séance annulée",
           "event": [
             {
