@@ -1,0 +1,237 @@
+{
+  "info": {
+    "name": "CinéQuiz - Réservations",
+    "description": "Parcours séance → réservation → validation du billet → annulation de la séance. Lancer le service avec `docker compose up -d --build reservations` (CINEQUIZ_DEV=1), puis exécuter la collection dans l'ordre (Run collection). Chaque exécution crée une nouvelle séance qui commence dans 2 heures.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8082" },
+    { "key": "acheteur", "value": "client_12" },
+    { "key": "titulaire", "value": "client_40" },
+    { "key": "salle_id", "value": "salle_3" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const iso = d => d.toISOString().replace(/\\.\\d{3}Z$/, 'Z');",
+          "const id = () => Math.random().toString(16).slice(2, 10);",
+          "if (pm.info.requestName.startsWith('1.')) {",
+          "  const seance = 'seance_pm_' + id();",
+          "  const debut = new Date(Date.now() + 2 * 3600 * 1000);",
+          "  const plus = m => iso(new Date(debut.getTime() + m * 60000));",
+          "  pm.collectionVariables.set('seance_id', seance);",
+          "  pm.collectionVariables.set('demande_id', 'dem_' + id());",
+          "  pm.collectionVariables.set('paiement_id', 'pay_' + id());",
+          "  pm.collectionVariables.set('evt_creee', 'evt_' + id());",
+          "  pm.collectionVariables.set('evt_annulee', 'evt_' + id());",
+          "  pm.collectionVariables.set('debut', iso(debut));",
+          "  pm.collectionVariables.set('debut_generique', plus(158));",
+          "  pm.collectionVariables.set('fin', plus(166));",
+          "  pm.collectionVariables.set('fin_occupation', plus(181));",
+          "  pm.collectionVariables.set('maintenant', iso(new Date()));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Santé du service",
+      "request": { "method": "GET", "url": "{{base_url}}/health" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('200 OK', () => pm.response.to.have.status(200));"
+      ] } }]
+    },
+    {
+      "name": "1. Recevoir seance.creee (réplica)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/dev/evenements",
+        "body": { "mode": "raw", "raw": "{\n  \"id_evenement\": \"{{evt_creee}}\",\n  \"version_schema\": 1,\n  \"sequence_objet\": 1,\n  \"type\": \"seance.creee\",\n  \"date\": \"{{maintenant}}\",\n  \"emetteur\": \"catalogue\",\n  \"recepteurs\": [\"reservations\", \"recherche\"],\n  \"type_objet\": \"Seance\",\n  \"id_objet\": \"{{seance_id}}\",\n  \"donnees\": {\n    \"film_id\": \"film_dune2\",\n    \"salle_id\": \"{{salle_id}}\",\n    \"debut\": \"{{debut}}\",\n    \"debut_generique\": \"{{debut_generique}}\",\n    \"fin\": \"{{fin}}\",\n    \"fin_occupation\": \"{{fin_occupation}}\",\n    \"version\": \"VF\",\n    \"tarifs\": { \"plein\": 11.5, \"reduit\": 9.0, \"enfant\": 7.0 },\n    \"statut\": \"programmee\"\n  },\n  \"contexte\": {\n    \"titre_film\": \"Dune : Deuxième partie\",\n    \"plan\": {\n      \"rangees\": [\"A\", \"B\", \"C\", \"D\", \"E\", \"F\", \"G\", \"H\", \"I\", \"J\", \"K\", \"L\", \"M\", \"N\", \"O\"],\n      \"places_par_rangee\": 20,\n      \"places_pmr\": [\"A1\", \"A2\"]\n    }\n  }\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('événement traité', () => pm.expect(pm.response.json().resultat).to.eql('traite'));"
+      ] } }]
+    },
+    {
+      "name": "2. Lire la séance",
+      "request": { "method": "GET", "url": "{{base_url}}/seances/{{seance_id}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('séance programmée', () => pm.expect(pm.response.json().statut).to.eql('programmee'));"
+      ] } }]
+    },
+    {
+      "name": "3. Bloquer F7",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Client-Id", "value": "{{acheteur}}" }],
+        "url": "{{base_url}}/blocages",
+        "body": { "mode": "raw", "raw": "{ \"seance_id\": \"{{seance_id}}\", \"place\": \"F7\" }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('201 bloquée', () => pm.response.to.have.status(201));"
+      ] } }]
+    },
+    {
+      "name": "4. Bloquer F7 par un autre client (refus)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Client-Id", "value": "client_99" }],
+        "url": "{{base_url}}/blocages",
+        "body": { "mode": "raw", "raw": "{ \"seance_id\": \"{{seance_id}}\", \"place\": \"F7\" }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 déjà bloquée', () => pm.response.to.have.status(409));"
+      ] } }]
+    },
+    {
+      "name": "5. Bloquer F8",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Client-Id", "value": "{{acheteur}}" }],
+        "url": "{{base_url}}/blocages",
+        "body": { "mode": "raw", "raw": "{ \"seance_id\": \"{{seance_id}}\", \"place\": \"F8\" }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('201 bloquée', () => pm.response.to.have.status(201));"
+      ] } }]
+    },
+    {
+      "name": "6. Confirmer la réservation",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Client-Id", "value": "{{acheteur}}" }],
+        "url": "{{base_url}}/reservations",
+        "body": { "mode": "raw", "raw": "{\n  \"seance_id\": \"{{seance_id}}\",\n  \"billets\": [\n    { \"place\": \"F7\", \"tarif\": \"plein\", \"titulaire_id\": \"{{titulaire}}\" },\n    { \"place\": \"F8\", \"tarif\": \"reduit\" }\n  ],\n  \"paiement_id\": \"{{paiement_id}}\",\n  \"demande_id\": \"{{demande_id}}\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const r = pm.response.json();",
+        "pm.test('201 confirmée', () => pm.response.to.have.status(201));",
+        "pm.test('montant 11.5 + 9.0', () => pm.expect(r.montant).to.eql(20.5));",
+        "pm.test('aucun jeton renvoyé à l\\'acheteur', () => r.billets.forEach(b => pm.expect(b).to.not.have.property('jeton_qr')));",
+        "pm.collectionVariables.set('reservation_id', r.reservation_id);",
+        "pm.collectionVariables.set('billet_f7', r.billets.find(b => b.place === 'F7').billet_id);",
+        "pm.collectionVariables.set('billet_f8', r.billets.find(b => b.place === 'F8').billet_id);"
+      ] } }]
+    },
+    {
+      "name": "7. Confirmer à nouveau (même demande)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Client-Id", "value": "{{acheteur}}" }],
+        "url": "{{base_url}}/reservations",
+        "body": { "mode": "raw", "raw": "{\n  \"seance_id\": \"{{seance_id}}\",\n  \"billets\": [\n    { \"place\": \"F7\", \"tarif\": \"plein\", \"titulaire_id\": \"{{titulaire}}\" },\n    { \"place\": \"F8\", \"tarif\": \"reduit\" }\n  ],\n  \"paiement_id\": \"{{paiement_id}}\",\n  \"demande_id\": \"{{demande_id}}\"\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('200, même réservation', () => {",
+        "  pm.response.to.have.status(200);",
+        "  pm.expect(pm.response.json().reservation_id).to.eql(pm.collectionVariables.get('reservation_id'));",
+        "});"
+      ] } }]
+    },
+    {
+      "name": "8. Billets du titulaire (jeton F7)",
+      "request": { "method": "GET", "header": [{ "key": "X-Client-Id", "value": "{{titulaire}}" }], "url": "{{base_url}}/clients/moi/billets" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const b = pm.response.json().find(b => b.billet_id === pm.collectionVariables.get('billet_f7'));",
+        "pm.test('le titulaire voit son billet F7', () => pm.expect(b).to.be.an('object'));",
+        "pm.collectionVariables.set('jeton_f7', b.jeton_qr);"
+      ] } }]
+    },
+    {
+      "name": "9. Billets de l'acheteur (jeton F8)",
+      "request": { "method": "GET", "header": [{ "key": "X-Client-Id", "value": "{{acheteur}}" }], "url": "{{base_url}}/clients/moi/billets" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const b = pm.response.json().find(b => b.billet_id === pm.collectionVariables.get('billet_f8'));",
+        "pm.test('l\\'acheteur voit son billet F8', () => pm.expect(b).to.be.an('object'));",
+        "pm.collectionVariables.set('jeton_f8', b.jeton_qr);"
+      ] } }]
+    },
+    {
+      "name": "10. Valider F7 (agent)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Role", "value": "agent" }],
+        "url": "{{base_url}}/billets/{{billet_f7}}/validation",
+        "body": { "mode": "raw", "raw": "{ \"jeton_qr\": \"{{jeton_f7}}\", \"salle_id\": \"{{salle_id}}\" }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('200 validé', () => pm.response.to.have.status(200));",
+        "pm.test('statut validee', () => pm.expect(pm.response.json().statut).to.eql('validee'));"
+      ] } }]
+    },
+    {
+      "name": "11. Scanner F7 une seconde fois (refus)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Role", "value": "agent" }],
+        "url": "{{base_url}}/billets/{{billet_f7}}/validation",
+        "body": { "mode": "raw", "raw": "{ \"jeton_qr\": \"{{jeton_f7}}\", \"salle_id\": \"{{salle_id}}\" }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 déjà validé', () => pm.response.to.have.status(409));"
+      ] } }]
+    },
+    {
+      "name": "12. Valider F8 tarif réduit sans justificatif (refus)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Role", "value": "agent" }],
+        "url": "{{base_url}}/billets/{{billet_f8}}/validation",
+        "body": { "mode": "raw", "raw": "{ \"jeton_qr\": \"{{jeton_f8}}\", \"salle_id\": \"{{salle_id}}\" }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 justificatif requis', () => pm.response.to.have.status(409));"
+      ] } }]
+    },
+    {
+      "name": "13. Valider F8 avec justificatif",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Role", "value": "agent" }],
+        "url": "{{base_url}}/billets/{{billet_f8}}/validation",
+        "body": { "mode": "raw", "raw": "{ \"jeton_qr\": \"{{jeton_f8}}\", \"salle_id\": \"{{salle_id}}\", \"justificatif_verifie\": true }" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('200 validé', () => pm.response.to.have.status(200));"
+      ] } }]
+    },
+    {
+      "name": "14. Annulation par l'acheteur après une entrée (refus)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "X-Client-Id", "value": "{{acheteur}}" }],
+        "url": "{{base_url}}/reservations/{{reservation_id}}/annulation"
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('409 billet déjà validé', () => pm.response.to.have.status(409));"
+      ] } }]
+    },
+    {
+      "name": "15. Recevoir seance.annulee",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base_url}}/dev/evenements",
+        "body": { "mode": "raw", "raw": "{\n  \"id_evenement\": \"{{evt_annulee}}\",\n  \"version_schema\": 1,\n  \"sequence_objet\": 2,\n  \"type\": \"seance.annulee\",\n  \"date\": \"{{maintenant}}\",\n  \"emetteur\": \"catalogue\",\n  \"recepteurs\": [\"reservations\", \"quiz\", \"recherche\"],\n  \"type_objet\": \"Seance\",\n  \"id_objet\": \"{{seance_id}}\",\n  \"modifications\": [\n    { \"donnee\": \"statut\", \"operation\": \"remplacer\", \"nouvelle_valeur\": \"annulee\" }\n  ],\n  \"contexte\": { \"film_id\": \"film_dune2\", \"motif\": \"panne du projecteur\" }\n}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test('événement traité', () => pm.expect(pm.response.json().resultat).to.eql('traite'));"
+      ] } }]
+    },
+    {
+      "name": "16. Lire la réservation (annulée et remboursée)",
+      "request": { "method": "GET", "header": [{ "key": "X-Client-Id", "value": "{{acheteur}}" }], "url": "{{base_url}}/reservations/{{reservation_id}}" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "const r = pm.response.json();",
+        "pm.test('annulée', () => pm.expect(r.statut).to.eql('annulee'));",
+        "pm.test('paiement puis remboursement intégral', () => pm.expect(r.paiements.map(p => p.montant)).to.eql([20.5, -20.5]));",
+        "pm.test('dates d\\'entrée conservées', () => r.billets.forEach(b => pm.expect(b.valide_le).to.be.a('string')));"
+      ] } }]
+    }
+  ]
+}
