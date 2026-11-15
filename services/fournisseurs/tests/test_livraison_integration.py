@@ -1,7 +1,10 @@
 import json
 import os
 import unittest
+from urllib.error import HTTPError
 from urllib.request import urlopen
+from urllib.request import Request as RequeteHttp
+from urllib.parse import urlparse
 
 from pymongo import MongoClient
 from redis import Redis
@@ -18,6 +21,25 @@ from services.fournisseurs.reception import ReceptionFournisseurs
 
 
 RECEPTEUR = "fournisseurs"
+
+
+def configuration_test() -> tuple[str, str, str, str]:
+    """Refuse any setup that could erase application data."""
+    mongo_uri = os.environ.get("CINEQUIZ_TEST_MONGO_URI")
+    mongo_db = os.environ.get("CINEQUIZ_TEST_MONGO_DB")
+    redis_url = os.environ.get("CINEQUIZ_TEST_REDIS_URL")
+    api_url = os.environ.get("CINEQUIZ_TEST_FOURNISSEURS_URL")
+    if not all((mongo_uri, mongo_db, redis_url, api_url)):
+        raise RuntimeError("CINEQUIZ_TEST_MONGO_URI, CINEQUIZ_TEST_MONGO_DB, CINEQUIZ_TEST_REDIS_URL and CINEQUIZ_TEST_FOURNISSEURS_URL are required.")
+    if mongo_db == os.environ.get("MONGO_DB") or not mongo_db.startswith("cinequiz_test_"):
+        raise RuntimeError("CINEQUIZ_TEST_MONGO_DB must be a dedicated cinequiz_test_* database.")
+    if mongo_uri == os.environ.get("MONGO_URI") and mongo_db == os.environ.get("MONGO_DB"):
+        raise RuntimeError("The test MongoDB configuration points to the application database.")
+    test_redis_db = urlparse(redis_url).path or "/0"
+    application_redis_db = urlparse(os.environ.get("REDIS_URL", "redis://unused/0")).path or "/0"
+    if redis_url == os.environ.get("REDIS_URL") or test_redis_db == application_redis_db:
+        raise RuntimeError("CINEQUIZ_TEST_REDIS_URL must use a dedicated Redis database.")
+    return mongo_uri, mongo_db, redis_url, api_url.rstrip("/")
 
 
 def message(*, identifiant: str, sequence: int, type: str = "coupon.utilise", recepteurs=None, date="2026-10-15T23:30:00Z"):
@@ -45,11 +67,12 @@ def message(*, identifiant: str, sequence: int, type: str = "coupon.utilise", re
 class LivraisonIntegrationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        mongo_uri, mongo_db, redis_url, cls.api_url = configuration_test()
         cls.redis = Redis.from_url(
-            os.environ["REDIS_URL"], decode_responses=True, socket_connect_timeout=2, socket_timeout=2
+            redis_url, decode_responses=True, socket_connect_timeout=2, socket_timeout=2
         )
-        cls.mongo = MongoClient(os.environ["MONGO_URI"], serverSelectionTimeoutMS=2_000)
-        cls.db = cls.mongo[os.environ["MONGO_DB"]]
+        cls.mongo = MongoClient(mongo_uri, serverSelectionTimeoutMS=2_000)
+        cls.db = cls.mongo[mongo_db]
 
     def setUp(self):
         self.db.client.drop_database(self.db.name)
@@ -141,12 +164,21 @@ class LivraisonIntegrationTest(unittest.TestCase):
             }
         )
 
-        with urlopen("http://127.0.0.1:8000/health") as reponse:
+        with urlopen(f"{self.api_url}/health") as reponse:
             self.assertEqual(200, reponse.status)
             self.assertEqual("ok", json.load(reponse)["statut"])
-        with urlopen("http://127.0.0.1:8000/consommations/fourn_popcorn_1") as reponse:
+        requete = RequeteHttp(
+            f"{self.api_url}/consommations/fourn_popcorn_1", headers={"X-Fournisseur-Id": "fourn_popcorn_1"}
+        )
+        with urlopen(requete) as reponse:
             consommations = json.load(reponse)
         self.assertEqual("2026-10-16", consommations[0]["date_locale"])
+        autre_fournisseur = RequeteHttp(
+            f"{self.api_url}/consommations/fourn_boisson_1", headers={"X-Fournisseur-Id": "fourn_popcorn_1"}
+        )
+        with self.assertRaises(HTTPError) as erreur:
+            urlopen(autre_fournisseur)
+        self.assertEqual(403, erreur.exception.code)
 
 
 if __name__ == "__main__":
