@@ -1,72 +1,95 @@
 # CinéQuiz
 
-Projet NoSQL : l'application d'un cinéma fictif, découpée en services. Le spectateur
-réserve sa séance, puis répond à un quiz sur le film qu'il vient de voir pour tenter
-de gagner un coupon pour un popcorn ou une boisson lors d'une prochaine visite.
+CinéQuiz est un projet NoSQL qui simule le parcours d'un spectateur, de la réservation d'une place à l'utilisation d'un coupon au comptoir. Après la séance, le spectateur peut répondre à un quiz de 10 questions sur le film. À partir de 8/10, il reçoit un coupon pour un popcorn moyen ou une boisson, valable 30 jours et utilisable une seule fois lors d'une visite ultérieure.
 
-Chaque service possède ses propres données et sa propre base NoSQL. Les services
-communiquent uniquement par événements, et gardent des réplicas des données dont
-ils ont besoin pour rester autonomes.
+Chaque service possède ses données et échange des événements via Redis. Le paiement et l'authentification sont simulés.
 
-## Le parcours en bref
+## Prérequis
 
-1. **Préparation** : le gérant crée les films, leurs questions et les séances.
-2. **Achat** : le spectateur réserve, choisit ses tarifs et paie ; un billet par place.
-3. **Entrée** : un agent scanne chaque billet et vérifie les justificatifs de tarif réduit.
-4. **Scan du QR Code** : le titulaire scanne le QR code figurant sur son billet à la fin de la séance ; il dispose de 2 heures pour démarrer le quiz.
-5. **Quiz** : 10 questions, 15 secondes chacune, au plus 150 secondes après le démarrage ; les choix mélangés gardent leurs identifiants et leur ordre après reconnexion.
-6. **Récompense** : Aucun coupon de 0 à 7/10 ; coupon garanti à 08/10 ; un popcorn moyen ou une boisson au choix à une visite ultérieure.
+- Git pour cloner le dépôt.
+- Docker Desktop démarré, avec Docker Compose v2.
+- Python 3.9 ou plus récent pour charger les données de démonstration. Le script utilise la bibliothèque standard.
+- Postman pour exécuter les collections de tests.
 
-7. **Prochaine visite** : le client choisit un popcorn ou une boisson au comptoir ; le coupon est valable 30 jours et utilisable une seule fois ; le fournisseur reçoit le total du produit réellement remis.
+## Démarrer le projet
 
-## Les services
-
-| Service | Base | Agrégats |
-|---|---|---|
-| Catalogue | MongoDB | Film, Salle, Séance |
-| Réservations | MongoDB | Réservation |
-| Quiz et coupons | Redis | Tentative, Coupon |
-| Recherche | Elasticsearch | Aucun (projection) |
-| Fournisseurs | MongoDB | Aucun (projection) |
-
-Le périmètre comprend trois services métier et deux services de projection.
-Le service Quiz et coupons utilise l'identifiant `quiz` dans les contrats et les
-chemins du dépôt. Les identifiants des clients proviennent du prestataire
-d'authentification simulé ; la gestion des profils reste hors périmètre.
-
-Le socle exécutable lance Catalogue, Réservations, Quiz et Fournisseurs.
-Les commandes métier, les workers et les consommateurs Recherche et
-`application_spectateur` seront ajoutés dans les lots suivants.
-
-## Démarrage local
-
-Avec Docker et Docker Compose v2, lancer cette commande depuis la racine du dépôt.
+Clonez le dépôt, puis lancez les services depuis sa racine.
 
 ```sh
-docker compose up --build
+git clone https://github.com/Ambiya12/Cine_Quiz.git
+cd Cine_Quiz
+docker compose up -d --build --wait
+docker compose ps
 ```
 
-| Service | Vérification dans Postman | Documentation OpenAPI |
-|---|---|---|
-| Catalogue | `GET http://localhost:8081/health` | [Swagger UI](http://localhost:8081/docs) |
-| Réservations | `GET http://localhost:8082/health` | [Swagger UI](http://localhost:8082/docs) |
-| Quiz | `GET http://localhost:8083/health` | [Swagger UI](http://localhost:8083/docs) |
-| Fournisseurs | `GET http://localhost:8084/health` | [Swagger UI](http://localhost:8084/docs) |
+Compose démarre MongoDB, Redis et les quatre API. Il attend que Redis soit joignable et que MongoDB soit primaire dans le replica set `rs0`. Les transactions MongoDB s'appuient sur ce replica set.
 
-Chaque route `/health` renvoie HTTP 200 avec le nom du service et `"statut": "ok"`
-si ses dépendances sont joignables, ou HTTP 503 sinon. Compose attend que Redis
-réponde et que MongoDB soit primaire dans le replica set `rs0` pour les services
-qui utilisent MongoDB.
+| Service | Base de données | Vérification de santé | Documentation interactive |
+| --- | --- | --- | --- |
+| Catalogue | MongoDB | [Port 8081](http://localhost:8081/health) | [Swagger UI](http://localhost:8081/docs) |
+| Réservations | MongoDB | [Port 8082](http://localhost:8082/health) | [Swagger UI](http://localhost:8082/docs) |
+| Quiz et coupons | Redis | [Port 8083](http://localhost:8083/health) | [Swagger UI](http://localhost:8083/docs) |
+| Fournisseurs | MongoDB | [Port 8084](http://localhost:8084/health) | [Swagger UI](http://localhost:8084/docs) |
 
-Les services partagent l'instance Redis via `REDIS_URL`. `REDIS_PREFIX` vaut le
-nom du service pour ses clés métier, par exemple `quiz:evenements_a_publier`.
-Les clés de transport conservent les noms du contrat, par exemple
-`evenements:quiz:ready`. Catalogue, Réservations et Fournisseurs utilisent
-`MONGO_URI` et une base par service, définie par `MONGO_DB`
-(`cinequiz_catalogue`, `cinequiz_reservations`, `cinequiz_fournisseurs`).
+Les routes `/health` renvoient `200 OK` avec `"statut": "ok"` lorsque les dépendances répondent. Pour consulter les logs d'un service, utilisez par exemple `docker compose logs catalogue`.
 
-Voir [l'interface commune des événements](services/commun/README.md) pour
-implémenter un producteur ou un consommateur.
+### Charger les données de démonstration
+
+Après le démarrage du Catalogue, exécutez la commande suivante depuis la racine du dépôt.
+
+```sh
+python3 scripts/donnees_demo.py
+```
+
+Le script crée trois films avec dix questions chacun et affiche leurs identifiants. Les événements produits par l'API alimentent la banque de questions du Quiz. Exécutez le script une fois par environnement de démonstration, car chaque exécution crée trois nouveaux films.
+
+## Tester avec Postman
+
+### Catalogue
+
+1. Ouvrez **Import** et ajoutez la [collection CinéQuiz](postman/CineQuiz.postman_collection.json) et l'[environnement CinéQuizLocal](postman/CineQuizLocal.postman_environment.json).
+2. Sélectionnez **CinéQuizLocal** et vérifiez que la variable `catalogue` vaut `http://localhost:8081`.
+3. Ouvrez la collection **CinéQuiz**, choisissez **Run** et exécutez **Catalogue - Films** et **Règle 409 : séance à venir** dans l'ordre proposé, avec une itération. Les scénarios créent leurs propres films et salles. Le Runner renseigne les identifiants et exécute la boucle qui ajoute les dix questions.
+4. Consultez **Test Results**. Une durée hors limites doit renvoyer `422`, un conflit de créneau doit renvoyer `409` et la reprogrammation d'une séance annulée doit renvoyer `201` avec un nouvel identifiant.
+
+### Réservations
+
+Importez la [collection Réservations](services/reservations/postman/reservations.postman_collection.json), vérifiez que sa variable `base_url` vaut `http://localhost:8082`, puis exécutez-la dans le Runner. Elle injecte une séance de test, bloque et réserve des places, valide les billets, vérifie la publication de `billet.valide` et contrôle le remboursement après annulation.
+
+La séance de test commence deux heures après le lancement. Pour que la validation du billet fonctionne, exécutez le scénario avant 22 h, heure de Paris, afin que la séance soit programmée le jour même.
+
+### Quiz et Fournisseurs
+
+- Après le chargement des données de démonstration, appelez `GET /films/{film_id}/questions` sur le port `8083` avec l'un des identifiants affichés. La réponse doit contenir dix questions. La synchronisation passe par Redis et peut prendre quelques secondes.
+- Pour parcourir le flux complet, créez une salle et une séance dans Catalogue, réservez et validez un billet dans Réservations, puis démarrez le quiz à la fin de la séance. Utilisez l'en-tête `X-Client-Id` avec l'identifiant du titulaire pour démarrer le quiz, répondre aux questions et consulter son coupon.
+- Pour tester l'utilisation d'un coupon, le titulaire doit avoir un billet validé le jour du scan, à une date ultérieure à l'émission du coupon. Sur le port `8083`, récupérez le jeton avec `GET /coupons/{coupon_id}/qr` et l'en-tête `X-Client-Id`. Appelez ensuite `POST /coupons/{coupon_id}/utiliser` avec l'en-tête `X-Agent-Id`, le `jeton_qr` et le `produit_choisi` dans le corps JSON.
+- Après le premier scan, consultez `GET /consommations` sur le port `8084` avec l'en-tête `X-Fournisseur-Id` du fournisseur concerné. Par défaut, une boisson est comptabilisée pour `fourn_boisson_1`. Le deuxième scan doit renvoyer `409` et le total doit rester identique. Les consommations sont regroupées selon le jour de l'événement dans le fuseau `Europe/Paris`.
+
+## Arrêter les services
+
+```sh
+docker compose down
+```
+
+Cette commande conserve les volumes MongoDB et Redis. Après une modification du code, relancez `docker compose up -d --build --wait` pour reconstruire les images.
+
+## Architecture et rapport
+
+Catalogue, Réservations et Fournisseurs utilisent chacun une base MongoDB dédiée. Quiz utilise Redis pour ses données métier. Les événements à publier sont enregistrés avec les changements métier dans MongoDB ou Redis, puis transmis via le [module commun](services/commun/README.md).
+
+La projection Elasticsearch de **Recherche** et le destinataire `application_spectateur` font partie de la conception. L'environnement Docker lance Catalogue, Réservations, Quiz et Fournisseurs.
+
+| Élément | Contenu |
+| --- | --- |
+| [`index.qmd`](index.qmd) | Rapport Quarto, parcours métier et choix de stockage |
+| [`DECISIONS.md`](DECISIONS.md) | Décisions de conception de l'équipe |
+| [`2-services-commandes/`](2-services-commandes/) | Services et commandes métier |
+| [`3-agregats/`](3-agregats/) | Agrégats, règles métier et modèles de données |
+| [`4-evenements-replicas/`](4-evenements-replicas/) | Contrats d'événements et réplicas |
+| [`5-projections/`](5-projections/) | Modèles et requêtes des projections Recherche et Fournisseurs |
+| [`services/`](services/) | Services FastAPI et module commun |
+
+Avec [Quarto](https://quarto.org), utilisez `quarto render` pour générer le rapport ou `quarto preview` pour le consulter pendant l'édition.
 
 ## Équipe
 
@@ -75,36 +98,3 @@ implémenter un producteur ou un consommateur.
 - BARUA Nirzara
 - NJONZO TAKAM Stephanie
 - HIRA Amena
-
-## Organisation du dépôt
-
-Les dossiers suivent les étapes des consignes du projet.
-
-| Élément | Contenu |
-|---|---|
-| `index.qmd` | Le rapport complet : descriptif, parcours et justifications |
-| `DECISIONS.md` | Les choix de conception et leur validation par l'équipe |
-| `2-services-commandes/` | Les services et leurs commandes |
-| `3-agregats/` | Les six agrégats, leurs lectures, clés de stockage et règles de conservation |
-| `4-evenements-replicas/` | Les événements entre services et les réplicas |
-| `5-projections/` | Les projections vers de nouveaux services et leurs requêtes (étape 6 des consignes) |
-| `services/` | Les API FastAPI et leur module commun |
-
-
-
-## Conventions
-
-- Les identifiants des exemples sont lisibles (`client_12`, `film_dune2`) pour faciliter
-  la compréhension. Dans l'application, ils sont générés automatiquement par le service
-  propriétaire de l'agrégat.
-- Les noms de fichiers, de dossiers et de clés JSON sont sans accents ni espaces.
-
-## Lire le rapport
-
-Le rapport est écrit avec [Quarto](https://quarto.org). Pour le générer :
-
-    quarto render
-
-Pour le voir se mettre à jour pendant l'écriture :
-
-    quarto preview
