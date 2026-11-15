@@ -1,0 +1,886 @@
+{
+  "info": {
+    "_postman_id": "fdccfe28-a2e9-47ef-bb72-b00e739eeabc",
+    "name": "CinéQuiz",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "42818534"
+  },
+  "item": [
+    {
+      "name": "Catalogue - Films",
+      "item": [
+        {
+          "name": "Créer un film",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Le film est créé (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.environment.set(\"film_id\", pm.response.json().film_id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titre\": \"Dune : Deuxième partie\",\r\n  \"synopsis\": \"Paul Atreides s'allie aux Fremen.\",\r\n  \"genres\": [\"science-fiction\", \"aventure\"],\r\n  \"duree_min\": 166,\r\n  \"debut_generique_min\": 158,\r\n  \"casting\": [{ \"acteur\": \"Timothée Chalamet\", \"role\": \"Paul Atreides\" }]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lire un film",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Le film est trouvé (200)\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un film : générique invalide",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Générique invalide refusé (400)\", () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titre\": \"Dune : Deuxième partie\",\r\n  \"synopsis\": \"Paul Atreides s'allie aux Fremen.\",\r\n  \"genres\": [\"science-fiction\", \"aventure\"],\r\n  \"duree_min\": 166,\r\n  \"debut_generique_min\": 170,\r\n  \"casting\": [{ \"acteur\": \"Timothée Chalamet\", \"role\": \"Paul Atreides\" }]\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer un film : titre manquant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Titre manquant refusé (422)\", () => pm.response.to.have.status(422));\r",
+                  "\r",
+                  "pm.test(\"L'erreur porte sur body.titre\", () => {\r",
+                  "    const erreur = pm.response.json().detail[0];\r",
+                  "    pm.expect(erreur.loc).to.eql([\"body\", \"titre\"]);\r",
+                  "    pm.expect(erreur.type).to.eql(\"missing\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"synopsis\": \"Paul Atreides s'allie aux Fremen.\",\r\n  \"genres\": [\"science-fiction\", \"aventure\"],\r\n  \"duree_min\": 166,\r\n  \"debut_generique_min\": 158\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lire un film inexistant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Film inexistant (404)\", () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogue}}/films/film_inexistant",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "film_inexistant"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ajouter une question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Question ajoutée (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.test(\"La question q1 est dans le film\", () => {\r",
+                  "    const questions = pm.response.json().questions;\r",
+                  "    pm.expect(questions).to.have.lengthOf(1);\r",
+                  "    pm.expect(questions[0].question_id).to.eql(\"q1\");\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"texte\": \"Quelle est la couleur des yeux des Fremen ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"Vert\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"Bleu\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"Rouge\" },\r\n    { \"choix_id\": \"d\", \"texte\": \"Jaune\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"b\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}/questions",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Question : 3 choix",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"3 choix refusés (400)\", () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"texte\": \"Quelle est la couleur des yeux des Fremen ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"Vert\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"Bleu\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"Rouge\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"b\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}/questions",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Question : bonne réponse absente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Bonne réponse absente refusée (400)\", () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"texte\": \"Quelle est la couleur des yeux des Fremen ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"Vert\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"Bleu\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"Rouge\" },\r\n    { \"choix_id\": \"d\", \"texte\": \"Jaune\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"z\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}/questions",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Question : film inexistant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Film inexistant (404)\", () => pm.response.to.have.status(404));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"texte\": \"Quelle est la couleur des yeux des Fremen ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"Vert\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"Bleu\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"Rouge\" },\r\n    { \"choix_id\": \"d\", \"texte\": \"Jaune\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"b\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/film_inexistant/questions",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "film_inexistant",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier un film",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Film modifié (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Le synopsis a changé\", () =>\r",
+                  "    pm.expect(pm.response.json().synopsis).to.eql(\"Paul Atreides s'allie aux Fremen pour venger sa famille.\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"synopsis\": \"Paul Atreides s'allie aux Fremen pour venger sa famille.\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier : générique invalide",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Générique invalide refusé (400)\", () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"debut_generique_min\": 170 }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Lire un film sans X-Role",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Sans rôle gérant (403)\", () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Retirer de l’affiche",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Film retiré (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"a_l_affiche vaut false\", () => pm.expect(pm.response.json().a_l_affiche).to.eql(false));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_id}}/retrait-affiche",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_id}}",
+                "retrait-affiche"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Règle 409 : séance à venir",
+      "item": [
+        {
+          "name": "Créer une salle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Salle créée (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.environment.set(\"salle_id\", pm.response.json().salle_id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"nom\": \"Salle de test\",\r\n  \"capacite\": 6,\r\n  \"plan\": {\r\n    \"rangees\": [\"A\", \"B\"],\r\n    \"places_par_rangee\": 3,\r\n    \"places_pmr\": [\"A1\"]\r\n  }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/salles",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "salles"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer une séance demain",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set(\"debut_seance\", new Date(Date.now() + 24 * 3600 * 1000).toISOString());"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Séance créée (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.environment.set(\"seance_id\", pm.response.json().seance_id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"film_id\": \"{{film_seance}}\",\r\n  \"salle_id\": \"{{salle_id}}\",\r\n  \"debut\": \"{{debut_seance}}\",\r\n  \"version\": \"VF\",\r\n  \"tarifs\": { \"plein\": 12.5, \"reduit\": 9.5, \"enfant\": 7.5 }\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/seances",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "seances"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Modifier la durée : séance à venir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Durée figée par la séance à venir (409)\", () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"duree_min\": 170 }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_seance}}",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_seance}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Retirer de l’affiche : séance à venir",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Retrait refusé, séance à venir (409)\", () => pm.response.to.have.status(409));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_seance}}/retrait-affiche",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_seance}}",
+                "retrait-affiche"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Annuler la séance",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Séance annulée (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"Statut annulee\", () => pm.expect(pm.response.json().statut).to.eql(\"annulee\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"motif\": \"Séance de test\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/seances/{{seance_id}}/annulation",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "seances",
+                "{{seance_id}}",
+                "annulation"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Retirer de l’affiche : séance annulée",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Retrait accepté une fois la séance annulée (200)\", () => pm.response.to.have.status(200));\r",
+                  "pm.test(\"a_l_affiche vaut false\", () => pm.expect(pm.response.json().a_l_affiche).to.eql(false));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_seance}}/retrait-affiche",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_seance}}",
+                "retrait-affiche"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Créer le film du test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Film du test créé (201)\", () => pm.response.to.have.status(201));\r",
+                  "pm.environment.set(\"film_seance\", pm.response.json().film_id);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"titre\": \"Film du test 409\",\r\n  \"duree_min\": 120,\r\n  \"debut_generique_min\": 110\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ajouter 10 questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Question ajoutée (201)\", () => pm.response.to.have.status(201));\r",
+                  "// Tant que le film a moins de 10 questions, le Runner relance cette même requête\r",
+                  "if (pm.response.json().questions.length < 10) {\r",
+                  "    pm.execution.setNextRequest(\"Ajouter 10 questions\");\r",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n  \"texte\": \"Question du test ?\",\r\n  \"choix\": [\r\n    { \"choix_id\": \"a\", \"texte\": \"A\" },\r\n    { \"choix_id\": \"b\", \"texte\": \"B\" },\r\n    { \"choix_id\": \"c\", \"texte\": \"C\" },\r\n    { \"choix_id\": \"d\", \"texte\": \"D\" }\r\n  ],\r\n  \"bonne_reponse_id\": \"a\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{catalogue}}/films/{{film_seance}}/questions",
+              "host": [
+                "{{catalogue}}"
+              ],
+              "path": [
+                "films",
+                "{{film_seance}}",
+                "questions"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "gerant",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "X-Role",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}
