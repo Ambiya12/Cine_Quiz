@@ -19,32 +19,38 @@ des bases NoSQL. Chaque service est propriétaire de ses données et maintient
 localement les copies nécessaires à son fonctionnement. Les modifications utiles
 aux autres services sont annoncées par des événements.
 
-Ce rapport présente la conception décrite dans le dépôt : **trois services métier
-et deux services de projection, 17 commandes, six agrégats métier, deux réplicas
-et deux projections**.
-Les fichiers JSON servent d'exemples de contrats et de modèles ; le dépôt ne
-contient pas encore une application exécutable.
+Le dépôt [Ambiya12/Cine_Quiz](https://github.com/Ambiya12/Cine_Quiz) contient
+quatre services FastAPI exécutables avec Docker Compose : Catalogue, Réservations,
+Quiz et coupons, et Fournisseurs. La projection de recherche Elasticsearch et
+l'application spectateur figurent dans la conception. Les fichiers JSON
+illustrent les commandes, les agrégats et les événements.
 
-::: {.callout-note}
-## Statut des choix métier
+### Lancer la démonstration
 
-Les règles présentées ci-dessous reprennent les propositions existantes.
-Leur validation collective reste à renseigner dans [le registre des
-décisions](DECISIONS.md). Une proposition décrite dans ce rapport ne constitue
-donc pas une décision déjà approuvée par l'équipe. Les questions de conception
-encore ouvertes sont regroupées en fin de rapport.
-:::
+Depuis la racine du dépôt :
+
+```sh
+docker compose up -d --build --wait
+python3 scripts/donnees_demo.py
+```
+
+Le script charge trois films et dix questions par film. Le
+[README](README.md) indique comment enchaîner les requêtes et importer les
+collections Postman.
+
+| Service | Stockage métier | Documentation de l'API |
+|---|---|---|
+| Catalogue | MongoDB | [Swagger, port 8081](http://localhost:8081/docs) |
+| Réservations | MongoDB, avec des blocages temporaires dans Redis | [Swagger, port 8082](http://localhost:8082/docs) |
+| Quiz et coupons | Redis | [Swagger, port 8083](http://localhost:8083/docs) |
+| Fournisseurs | MongoDB | [Swagger, port 8084](http://localhost:8084/docs) |
 
 ### Périmètre
 
 Le parcours couvre le catalogue, les séances, les réservations, les billets,
-le quiz, les coupons et les consultations destinées aux spectateurs et aux
-fournisseurs. Le paiement et l'authentification sont prévus via des prestataires
-simulés. Les identifiants des clients sont fournis par ce prestataire
-d'authentification ; la gestion des profils reste hors périmètre.
-
-La gestion de plusieurs cinémas et les projections supplémentaires restent
-des évolutions possibles, recensées dans `DECISIONS.md`.
+le quiz, les coupons et les consultations des fournisseurs. Le paiement et
+l'identité sont simulés. Le [registre des décisions](DECISIONS.md) recense les
+choix de l'équipe et les évolutions envisagées.
 
 ### Organisation des livrables
 
@@ -54,125 +60,78 @@ des évolutions possibles, recensées dans `DECISIONS.md`.
 | 2 — Définir les services | `2-services-commandes/` | Commandes, acteurs, données d'entrée et effets |
 | 3 — Définir les agrégats | `3-agregats/` | Modèles JSON, règles et données de référence |
 | 4 — Découpler les services | `4-evenements-replicas/` | Événements et copies locales alimentées par ces événements |
-| 6 — Projeter les données | `5-projections/` | Modèles de lecture et requêtes de nouveaux services |
+| 6 — Projeter les données | `5-projections/` | Modèles de lecture et requêtes pour Recherche et Fournisseurs |
+| Implémentation | `services/`, `docker-compose.yml`, `postman/` | API, workers d'événements, services Docker et collections de test |
 
 Le dossier `5-projections/` correspond à l'étape 6 des consignes fournies,
 dont la numérotation passe directement de 4 à 6.
 
 ## Les acteurs
 
-| Acteur | Actions dans le parcours proposé |
+| Acteur | Actions |
 |---|---|
-| Spectateur | Consulter les films et séances, réserver, transférer un billet, participer au quiz et consulter ses coupons |
-| Gérant | Créer les films et les questions, définir les salles, programmer, modifier ou annuler les séances |
-| Agent du cinéma | Scanner les billets, vérifier les justificatifs des tarifs concernés et utiliser les coupons au comptoir |
-| Fournisseur de confiserie | Consulter les quantités de produits remises contre des coupons, pour le suivi et le réapprovisionnement |
-
-L'application du spectateur affiche les billets, les quiz et les coupons. L'écran
-du cinéma affiche le QR code du générique. Ces interfaces ne sont pas propriétaires
-des agrégats métier. Leur connexion aux services, notamment pour les
-notifications, reste à préciser lors de la réalisation.
+| Spectateur | Consulter les films et les séances, réserver, participer au quiz et consulter ses coupons |
+| Gérant | Créer les films et leurs questions, définir les salles, programmer les séances, ajuster leurs tarifs ou les annuler |
+| Agent du cinéma | Valider les billets, vérifier les justificatifs et scanner les coupons au comptoir |
+| Fournisseur de confiserie | Consulter les quantités de produits remis en échange de coupons |
 
 ## Les règles métier
 
-Les propositions suivantes structurent les commandes et les agrégats existants.
-
 ### Programmation et réservation
 
-- Un film contient sa banque de questions. Une séance nécessite au moins dix
-  questions ; la proposition vise une banque d'environ quarante questions.
-- Une salle possède un plan et une capacité cohérents. Deux séances ne doivent
-  pas occuper la même salle au même moment.
-- Les horaires du générique et de fin sont calculés à partir du début de séance
-  et des durées du film.
-- Chaque place réservée produit un billet avec son propre QR code. Une place
-  ne doit être vendue qu'une seule fois pour une séance donnée.
-- Une place peut être bloquée pendant cinq minutes avant la confirmation du
-  paiement. Le prix du billet reste celui de l'achat après une modification des tarifs.
-- Les tarifs proposés sont plein, réduit et enfant. Le justificatif est vérifié
-  à l'entrée pour les tarifs concernés.
-- L'acheteur peut annuler plus de trente minutes avant la séance si aucun billet
-  n'a été validé. Le scénario prévoit un remboursement total. La modification
-  d'une réservation n'est pas proposée.
-- Le cinéma peut annuler avant la fin prévue de la séance, y compris pendant
-  celle-ci. Les réservations encore confirmées sont remboursées intégralement,
-  même après une entrée ; les dates de validation des billets sont conservées.
-- Une annulation répétée retourne « déjà annulée », après contrôle du demandeur,
-  sans autre remboursement ni nouvel événement. Cela s'applique aussi lorsqu'une
-  annulation cinéma suit une annulation de l'acheteur.
-- Le titulaire peut transférer un billet au statut `payee`, dans une réservation
-  `confirmee`, si la séance n'est pas annulée. Aucun événement de transfert
-  n'est défini.
-
-Les commandes appliquent les contrôles d'état suivants, en plus de leurs autres
-vérifications :
-
-| Action | Conditions d'état |
-|---|---|
-| Bloquer une place ou confirmer une réservation | Séance `programmee` et début non atteint ; ces conditions sont revérifiées lors de la confirmation |
-| Transférer un billet | Billet `payee`, réservation `confirmee`, séance non annulée |
-| Valider un billet à l'entrée | Billet `payee`, réservation `confirmee`, séance non annulée |
-| Modifier une séance | Séance `programmee` et début non atteint |
-| Annuler sa réservation | Acheteur identifié, réservation `confirmee`, plus de trente minutes avant le début, aucun billet validé ; si déjà annulée, retourner le résultat avant les contrôles de délai |
-| Annuler une séance au cinéma | Gérant, avant la fin prévue ; une séance déjà annulée ne déclenche aucun nouvel effet |
+- Le Catalogue exige au moins dix questions sur un film avant de programmer sa
+  séance. Les durées du film déterminent le début du générique et la fin.
+- La salle est occupée jusqu'à la fin de la séance, augmentée de quinze minutes
+  de nettoyage. Les créneaux d'une même salle ne peuvent pas se chevaucher.
+- Un blocage Redis réserve temporairement une place pendant cinq minutes.
+  La confirmation vérifie l'attribution dans MongoDB et crée un billet avec
+  son propre jeton QR pour chaque place. L'acheteur peut désigner un autre
+  titulaire à l'achat.
+- Chaque billet conserve son prix d'achat. Pour un tarif réduit ou enfant,
+  l'agent vérifie le justificatif à l'entrée. Le billet doit correspondre à la
+  salle et à une séance du jour, selon l'heure de Paris.
+- L'acheteur peut annuler au moins une heure avant le début si aucun billet
+  n'a été validé. Le cinéma peut annuler la séance avant sa fin, y compris
+  pendant celle-ci. Dans ce cas, les réservations encore confirmées sont
+  remboursées intégralement, même après une entrée. Une annulation répétée
+  conserve le résultat initial et ne produit aucun second remboursement.
 
 ### Quiz et coupons
 
-La validation d'un billet crée une tentative en attente de présence.
-Le scan du QR code pendant le générique ouvre une fenêtre de deux heures pour
-démarrer le quiz. Dix questions sont tirées au hasard ; chacune dispose de quinze
-secondes, mesurées côté serveur. Les règles sont les suivantes :
+La validation d'un billet programme une tentative pour son titulaire. Le worker
+ouvre le quiz automatiquement à la fin de la séance. Le titulaire dispose de
+deux heures à partir de la fin prévue pour démarrer le quiz. L'API identifie le
+titulaire avec l'en-tête `X-Client-Id` et le `billet_id` de la tentative.
 
 | Sujet | Règle |
 |---|---|
-| Titulaire | L'utilisateur authentifié doit correspondre au `client_id` de la tentative pour confirmer sa présence, démarrer et répondre |
-| Code du générique | Signature valide, créneau actuel ou précédent, même séance que la tentative, scan entre `debut_generique` inclus et `fin_seance` exclue ; aucune annulation connue |
-| Délais | `demarrage_avant = ouverte_le + 2 heures` ; démarrage strictement avant cette limite ; `finir_avant = demarree_le + 150 secondes`, indépendamment de la première limite |
-| Absence de réponse | Après quinze secondes, le serveur compte la question fausse et avance, même sans requête du téléphone ; à la limite de fin, les réponses encore absentes sont fausses |
-| Choix mélangés | Chaque réponse soumet un `choix_id` stable ; les questions, leur correction et l'ordre des choix sont figés côté serveur au démarrage et restent inchangés après reconnexion |
+| Questions | Dix questions tirées au hasard. Les questions et l'ordre de leurs choix sont figés au démarrage. La correction reste côté serveur. |
+| Réponses | L'API reçoit le `question_id` et le `choix_id`. Le serveur accorde quinze secondes par question et compte une réponse manquante comme fausse. |
+| Reconnexion | Le titulaire retrouve la progression de sa tentative. Le délai de démarrage et les échéances des questions restent les mêmes. |
+| Récompense | Un coupon est garanti à partir de 8/10. En dessous de 8/10, aucun coupon n'est émis. |
 
-Les dates proviennent du serveur. Un nouveau scan, un nouvel appel de démarrage
-ou une reconnexion ne renouvelle aucun délai. Un quiz commencé à 00:40:59, avec
-une limite de démarrage à 00:41, peut finir jusqu'à 00:43:29. Les bonnes réponses
-ne sont jamais transmises au téléphone. Celui-ci reçoit uniquement la question
-courante et ses choix publics.
+La décision de récompense est enregistrée une fois par tentative avec
+`recompense_traitee` et, le cas échéant, son `coupon_id`. Le coupon donne droit
+à un popcorn moyen ou à une boisson au choix et expire après trente jours.
+Pour l'utiliser, le titulaire doit présenter son jeton QR lors d'une visite
+ultérieure et avoir un billet validé le jour du scan, selon l'heure de Paris.
+Une deuxième utilisation du coupon est refusée.
 
-La récompense dépend du score :
-
-| Score | Récompense |
-|---|---|
-| 0 à 7/10 | Aucun coupon |
-| 8 ou 9/10 | Un seul tirage, avec 50 % de chances de gagner un coupon |
-| 10/10 | Coupon garanti, sans tirage |
-
-Le coupon donne droit à un seul popcorn moyen ou une seule boisson, choisi au
-comptoir lors d'une visite ultérieure à celle du quiz. Il appartient au client,
-reste valable trente jours et s'utilise une seule fois avec son jeton secret.
-Le besoin d'un billet du jour lors de cette visite reste une question à valider.
-
-Une seule décision est enregistrée par tentative (`billet_id`) :
-`recompense_traitee` devient vrai même pour un score insuffisant ou un tirage
-perdant, et `coupon_id` reste nul si aucun coupon n'est gagné. Si `quiz.termine`
-est reçu de nouveau, cette décision est réutilisée sans nouveau tirage ni coupon.
-Le contrôle et l'enregistrement, avec la création du coupon si gagné, forment
-une seule opération atomique. Chaque coupon conserve son `tentative_id` d'origine.
-
-À réception de `seance.annulee`, Quiz annule les tentatives en attente de présence,
-ouvertes ou en cours et n'en crée plus pour cette séance. Les tentatives déjà
-terminées conservent leur résultat et les coupons déjà émis restent valables
-selon leur propre date d'expiration.
+À réception de `seance.annulee`, Quiz annule les tentatives programmées,
+ouvertes ou en cours de cette séance. Les résultats terminés et les coupons
+déjà émis restent disponibles.
 
 ## Les services
 
 ### Responsabilités et choix des bases
 
-| Service | Données sous sa responsabilité | Base proposée et justification |
+| Service | Données sous sa responsabilité | Stockage et justification |
 |---|---|---|
 | Catalogue | Films, questions, salles et séances | MongoDB : les documents regroupent les listes et objets imbriqués d'un film ou d'une salle |
-| Réservations | Réservations, billets et paiements simulés | Cassandra : les accès sont organisés par réservation, séance/place et titulaire ; Redis porte les blocages temporaires |
-| Quiz et coupons | Tentatives et coupons | Redis : accès directs par clé et index par client ou séance ; détail temporaire, résumés et coupons durables avec AOF sur disque conservé |
-| Recherche | Index de films et de séances | Elasticsearch : un modèle de lecture dédié porte la recherche textuelle, la tolérance aux fautes et les filtres |
-| Fournisseurs | Consommations regroupées et événements reçus | MongoDB : un document par fournisseur et par jour regroupe les compteurs, consultés par agrégation |
+| Réservations | Réservations, billets et paiements simulés | MongoDB pour les réservations et les billets. Redis pour les blocages temporaires. |
+| Quiz et coupons | Tentatives et coupons | Redis pour les accès directs par clé, les index client et séance et le traitement des échéances. |
+| Recherche | Index de films et de séances | Elasticsearch prévu pour la recherche textuelle, la tolérance aux fautes et les filtres. |
+| Fournisseurs | Consommations regroupées et événements reçus | MongoDB pour les compteurs par produit dans un document par fournisseur et par jour. |
 
 Catalogue, Réservations et Quiz et coupons reçoivent les commandes métier.
 L'identifiant du service Quiz et coupons est `quiz` dans les contrats et les chemins
@@ -190,29 +149,28 @@ maintient une copie locale adaptée à ses lectures.
 Par exemple, Réservations reçoit le plan et les tarifs d'une séance pour traiter
 une réservation sans relire le Catalogue. Quiz et coupons reçoit les questions
 du film pour tirer et corriger son quiz localement. Les mises à jour de ces copies
-sont asynchrones : le rapport décrit un objectif de cohérence à terme, et les
-modalités de livraison et de reprise restent à détailler.
+sont asynchrones. Les copies reflètent l'écriture à la source après le traitement
+de l'événement par le service destinataire.
 
 ```{mermaid}
-flowchart LR
-    C["Catalogue · MongoDB"] -->|"Films et séances"| T["Événements · Redis Streams"]
-    R["Réservations · Cassandra + Redis"] -->|"Réservations et billets"| T
+flowchart TD
+    C["Catalogue · MongoDB"] -->|"Films et séances"| T["Redis · journal et files"]
+    R["Réservations · MongoDB et Redis"] -->|"Réservations et billets"| T
     Q["Quiz et coupons · Redis"] -->|"Quiz et coupons"| T
     T -->|"Séances"| R
-    T -->|"Films, billets validés et séances annulées ; réactions internes"| Q
-    T -->|"Films et séances"| E["Recherche · Elasticsearch"]
+    T -->|"Films, billets validés, annulations et fins de quiz"| Q
+    T -->|"Films et séances"| E["Recherche · Elasticsearch, conception"]
     T -->|"Coupons utilisés"| F["Fournisseurs · MongoDB"]
 ```
 
 Les flèches regroupent les échanges détaillés dans la matrice des événements.
-Redis Streams est le transport proposé dans le dépôt, avec un flux par service
-émetteur. Le schéma ne représente pas des services déjà déployés.
+Redis conserve un journal Streams par émetteur et des files Lists par
+destinataire.
 
 ## Lectures principales et clés
 
-Chaque lecture possède un accès identifié dans les modèles JSON. Les clés et
-index ci-dessous sont prévus pour l'implémentation ; ils ne sont pas encore créés
-dans des bases exécutables.
+Les tables ci-dessous relient les lectures métier aux collections MongoDB,
+aux clés Redis et au modèle Elasticsearch prévu pour Recherche.
 
 ### Catalogue — MongoDB
 
@@ -231,42 +189,35 @@ chevauchements puis insère la séance : deux créations simultanées dans la m�
 salle écrivent le même document, l'une échoue en conflit d'écriture et est
 rejouée, et voit alors la séance de l'autre.
 
-### Réservations — Cassandra
+### Réservations — MongoDB et Redis
 
-Les tables suivent les lectures, conformément à la
-[modélisation par requêtes de Cassandra](https://cassandra.apache.org/doc/latest/cassandra/developing/data-modeling/intro.html).
-Cinq tables portent l'agrégat Réservation ; `seances_replica` conserve séparément
-les données reçues du Catalogue.
+Cinq collections MongoDB couvrent les accès à la réservation et aux billets.
+La collection `seances_replica` conserve les données reçues du Catalogue.
 
-| Lecture | Table | Clé |
+| Lecture | Collection | Clé ou index |
 |---|---|---|
-| Charger une réservation | `reservations` | Partition `reservation_id` |
-| Retrouver un billet | `billets_par_id` | Partition `billet_id` ; obtenir `reservation_id`, puis lire le billet dans la réservation |
-| Lister les réservations achetées par un client | `reservations_par_client` | Partition `acheteur_id`, regroupement `reservation_id` |
-| Lister les billets détenus par un client | `billets_par_client` | Partition `titulaire_id`, regroupement `billet_id` |
-| Vérifier une place | `billets_par_seance` | Partition `seance_id`, regroupement `place` |
-| Trouver les réservations actives d'une séance à annuler | `billets_par_seance` | Lire cette partition `seance_id`, collecter les `reservation_id` distincts, puis charger les réservations |
-| Charger le plan, les tarifs et les horaires locaux | `seances_replica` | Partition `seance_id` |
+| Charger une réservation | `reservations` | Index unique sur `reservation_id`. `demande_id` et `paiement_id` ont chacun un index unique. |
+| Retrouver un billet | `billets_par_id` | Index unique sur `billet_id`, puis lecture via `reservation_id`. |
+| Lister les réservations d'un acheteur | `reservations_par_client` | Index composé `(acheteur_id, reservation_id)`. |
+| Lister les billets d'un titulaire | `billets_par_client` | Index composé `(titulaire_id, billet_id)`. |
+| Vérifier une place ou retrouver les réservations d'une séance | `billets_par_seance` | Index unique `(seance_id, place)`. |
+| Charger le plan, les tarifs et les horaires | `seances_replica` | Index unique sur `seance_id`. |
 
-Les lignes de place attribuée contiennent `reservation_id` et `billet_id`.
-Un transfert met à jour l'index de l'ancien et du nouveau titulaire sans déplacer
-la réservation de l'acheteur. La table `reservations` conserve l'état de référence
-des billets et paiements ; les vues par client servent à la lecture. Toute action
-sur un billet vérifie son état de référence. Ces accès évitent un balayage global
-des réservations ou billets.
+L'attribution définitive des places, la création des billets et la mise à jour
+des collections de lecture sont faites dans une même transaction MongoDB.
+Le blocage de cinq minutes est géré séparément par Redis.
 
 ### Quiz et coupons — Redis
 
 | Lecture | Clé | Contenu |
 |---|---|---|
-| Charger une tentative, son résultat ou sa décision de récompense | `tentative:{billet_id}` | Hash de la tentative et de son résumé |
-| Retrouver les tentatives après annulation d'une séance | `tentatives_par_seance:{seance_id}` | Set des `billet_id`, puis lecture des tentatives |
-| Charger un coupon | `coupon:{coupon_id}` | Hash du coupon |
-| Lister les coupons du client authentifié | `coupons_par_client:{client_id}` | Set des `coupon_id`, puis lecture des coupons |
-| Charger le film et les questions du réplica | `film:{film_id}`, `questions:{film_id}` | Hash du titre ; hash des questions par `question_id`, sérialisées en JSON |
-
-Les index par séance et client sont mis à jour à la création des tentatives et
-coupons. Ils permettent les lectures ciblées sans recherche de toutes les clés.
+| Charger une tentative et son résultat | `quiz:tentative:{billet_id}` | Hash avec l'état de la tentative. |
+| Retrouver les tentatives après annulation d'une séance | `quiz:tentatives_par_seance:{seance_id}` | Set de `billet_id`. |
+| Charger un coupon | `quiz:coupon:{coupon_id}` | Hash avec l'état et la date d'expiration du coupon. |
+| Lister les coupons du titulaire | `quiz:coupons:{client_id}` | Set de `coupon_id`. |
+| Vérifier un billet validé le jour du scan | `quiz:visites:{date}` | Set contenant les titulaires du jour, expiré à minuit deux jours après la date de visite. |
+| Charger le réplica du film et de ses questions | `quiz:film:{film_id}`, `quiz:questions:{film_id}` | Hash du titre et hash des questions, indexées par `question_id`. |
+| Sélectionner les échéances atteintes | `quiz:echeances` | Ensemble trié par horodatage pour ouvrir, expirer ou faire progresser une tentative. |
 
 ### Recherche — Elasticsearch
 
@@ -278,27 +229,18 @@ coupons. Ils permettent les lectures ciblées sans recherche de toutes les clés
 
 ### Fournisseurs — MongoDB
 
-| Lecture | Collection | Clé ou index |
+| Lecture | Collection | Accès |
 |---|---|---|
-| Charger le total d'un fournisseur pour un jour | `consommations` | `_id = fournisseur_id\|date` |
-| Totaliser les produits sur un mois | `consommations` | Index composé `(fournisseur_id, date)` puis agrégation |
-| Regrouper les coupons utilisés par film | `evenements_recus` | Index `fournisseur_id`, regroupement sur `film_origine_id` |
-| Vérifier une réception déjà traitée | `evenements_recus` | `_id = id_evenement` |
+| Charger le total d'un fournisseur pour un jour | `consommations` | <code>_id = fournisseur_id&#124;date_locale</code>. |
+| Lister les consommations sur une période | `consommations` | Filtrage par `fournisseur_id` et plage de `date_locale`. |
+| Vérifier une réception déjà traitée | `evenements_recus` | `_id = id_evenement`. |
 
 ### Conservation et redémarrage de Redis
 
-| Données | Conservation |
-|---|---|
-| Questions figées, réponses et progression | Détail temporaire ; conservé tant que le quiz est actif, nettoyable après traitement de sa fin ou annulation |
-| Résumé de tentative et attribution | Durable : identités, état final, score, `recompense_traitee` et `coupon_id` restent après nettoyage du détail |
-| Coupons et index client | Durables ; `expire_le` interdit la remise après échéance sans supprimer la preuve ; aucun TTL sur ces clés |
-
-Temporaire décrit la durée de conservation, pas une autorisation de perdre une
-tentative en cours lors d'un redémarrage. Redis Quiz doit utiliser la
-[persistance AOF](https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/)
-sur un stockage disque conservé, sans éviction automatique. La reprise garde les
-dates initiales des quiz et les preuves d'utilisation des coupons. Cette
-configuration sera créée et vérifiée lors de l'implémentation.
+Docker Compose active la persistance AOF avec `appendfsync always` sur le volume
+`redis-data` et désactive l'éviction automatique. Redis conserve les échéances
+du quiz, les décisions de récompense, les journaux et les files d'événements
+entre deux démarrages. La date `expire_le` contrôle la validité du coupon.
 
 ## Les commandes
 
@@ -311,8 +253,8 @@ pour cette commande dans la conception actuelle.
 | Service | Commandes définies | Nombre |
 |---|---|---:|
 | Catalogue | `CreerFilm`, `ModifierFilm`, `AjouterQuestion`, `RetirerFilmDeLAffiche`, `CreerSalle`, `CreerSeance`, `ModifierSeance`, `AnnulerSeance` | 8 |
-| Réservations | `BloquerPlace`, `ConfirmerReservation`, `AnnulerReservation`, `TransfererBillet`, `ValiderBillet` | 5 |
-| Quiz et coupons | `ConfirmerPresence`, `DemarrerQuiz`, `RepondreQuestion`, `UtiliserCoupon` | 4 |
+| Réservations | `BloquerPlace`, `ConfirmerReservation`, `AnnulerReservation`, `ValiderBillet` | 4 |
+| Quiz et coupons | `DemarrerQuiz`, `RepondreQuestion`, `UtiliserCoupon` | 3 |
 
 Les commandes ne suffisent pas à décrire toutes les lectures : consulter un
 billet, rechercher un film et obtenir un total fournisseur sont des consultations.
@@ -342,9 +284,8 @@ Les deux projections ci-dessous illustrent ces accès.
 ## Les agrégats
 
 Un agrégat regroupe des données soumises aux règles d'un même objet métier.
-Les fichiers précisent son propriétaire, son stockage envisagé, ses règles,
-ses références et un exemple. L'objet JSON présente le modèle logique ; il ne
-constitue pas à lui seul un schéma physique ou une transaction entre bases.
+Les fichiers précisent son propriétaire, son stockage, ses règles, ses
+références et un exemple de document ou de structure Redis.
 
 ### Catalogue : Film, Salle et Séance
 
@@ -390,27 +331,13 @@ séance et en crée une nouvelle.
 ### Réservations : Réservation
 
 **Réservation** regroupe l'acheteur, les billets et l'historique des paiements.
-L'acheteur est distinct du titulaire : après un transfert, il reste l'acheteur de
-la réservation, tandis que le destinataire devient titulaire du billet concerné.
+Le titulaire d'un billet peut être désigné à l'achat. L'acheteur garde la
+responsabilité de la réservation et de son éventuelle annulation.
 
-Le stockage proposé prévoit cinq tables Cassandra, détaillées dans les lectures
-principales. Elles couvrent l'accès par réservation, billet, acheteur, titulaire
-et séance/place. Le lien `billets_par_id` permet de retrouver la réservation
-d'origine ; ses données restent conservées après annulation.
-
-Pour un même `(seance_id, place)`, une seule réservation active peut détenir la
-place. `billets_par_seance` fait autorité pour cette attribution. Le contrôle de
-disponibilité et l'attribution sont une seule décision atomique ; le verrou Redis
-de cinq minutes reste une aide temporaire. La confirmation ne réussit que si
-toutes les places sont attribuées à la réservation ; un conflit ne laisse pas
-d'attribution partielle. La libération d'une place vérifie qu'elle appartient
-encore à la réservation annulée. Le mécanisme de concurrence et la mise à jour
-des copies de lecture seront choisis lors du codage.
-
-`montant` désigne toujours le prix d'achat initial. Les paiements et remboursements
-sont conservés dans `paiements` ; leur somme donne le montant net payé, sans
-champ supplémentaire. Par exemple, après remboursement d'un achat de 20,50 €,
-`montant` reste à 20,50 € et les écritures +20,50 € et −20,50 € donnent un net de 0 €.
+L'index unique `(seance_id, place)` interdit deux attributions actives de la même
+place. La transaction confirme toutes les places ensemble. Une annulation
+libère les places attribuées à cette réservation, conserve les prix d'achat et
+ajoute le remboursement à l'historique de paiement.
 
 ::: {.callout-note collapse="true"}
 ## Agrégat Réservation
@@ -427,18 +354,10 @@ dans l'ordre affiché et leur correction privée, la progression, le score et le
 résultat d'attribution du coupon. **Coupon**
 possède son propre identifiant, sa date limite et son état d'utilisation :
 son cycle de vie se poursuit après la fin du quiz.
-À l'émission, il indique les deux `produits_eligibles` ; `type` et `fournisseur_id`
-sont nuls. Lors de la remise, le choix du client fixe ces deux valeurs selon la
-configuration des produits du cinéma. Le fournisseur est déterminé côté serveur.
-
-Le dépôt prévoit des hashes Redis pour les tentatives et les coupons, ainsi que
-des sets pour les lectures par séance et par client.
-L'expiration ne supprime jamais un quiz en cours : son nettoyage suit le traitement
-de sa fin ou de son annulation. Son résumé final, incluant `recompense_traitee` et
-`coupon_id`, reste conservé pour les rejeux, même après nettoyage du détail. Les
-coupons et leur index client sont conservés sans TTL avec leurs preuves
-d'utilisation. La persistance AOF sur disque conservé est prévue ; sa configuration
-et la reprise seront vérifiées lors de l'implémentation.
+À l'émission, le coupon contient les deux `produits_eligibles`. Au comptoir,
+`produit_choisi` et `fournisseur_id` sont renseignés selon la configuration
+du cinéma. Quiz conserve dans Redis la décision par tentative, l'historique des
+récompenses par titulaire et les traces d'utilisation.
 
 ::: {.callout-note collapse="true"}
 ## Agrégat Tentative
@@ -481,9 +400,24 @@ un autre incrément de compteur. Les modifications locales et l'enregistrement
 de l'identifiant sont validés ensemble ; si le traitement échoue, aucun des deux
 n'est conservé. Une republication technique garde le même identifiant.
 
-Les fichiers distinguent le message publié, dans `evenement`, des réactions
-attendues, dans `reactions`. Ces réactions documentent le comportement des
-récepteurs ; elles ne constituent pas des consommateurs déjà implémentés.
+Les fichiers distinguent le message transmis, dans `evenement`, des réactions
+décrites dans `reactions`.
+
+### Publication et livraison
+
+1. Le service producteur enregistre la modification métier et son événement
+   dans une même transaction MongoDB ou un même script Lua pour Quiz.
+2. Le worker de publication écrit l'événement dans le journal Redis Streams et
+   le dépose dans la file `ready` de chaque destinataire. Il confirme ensuite la
+   publication dans la boîte d'envoi locale.
+3. Le worker destinataire déplace le message vers `processing`, vérifie
+   l'identifiant et la séquence, applique l'effet local puis acquitte le message.
+   Il consulte le journal de l'émetteur pour résoudre un trou de séquence.
+4. Les messages non acquittés peuvent être repris. Après cinq échecs de
+   traitement, le message et sa cause sont conservés dans la file d'échecs.
+
+Le [module commun](services/commun/README.md) détaille les workers et leurs
+interfaces.
 
 ::: {.callout-note collapse="true"}
 ## Format commun des événements
@@ -503,18 +437,18 @@ récepteurs ; elles ne constituent pas des consommateurs déjà implémentés.
 | `seance.annulee` | Catalogue | Réservations, Quiz et coupons, Recherche | Rembourser une seule fois les réservations encore confirmées, annuler les quiz non terminés et retirer la séance des résultats ; conserver les résultats terminés et coupons émis |
 | `reservation.confirmee` | Réservations | Aucun dans le périmètre actuel | Conserver le contrat décrivant la confirmation d'une réservation |
 | `reservation.annulee` | Réservations | Aucun dans le périmètre actuel | Conserver le contrat décrivant l'annulation d'une réservation |
-| `billet.valide` | Réservations | Quiz et coupons | Créer une tentative en attente de présence et préparer les notifications |
+| `billet.valide` | Réservations | Quiz et coupons | Programmer la tentative du titulaire à la fin de la séance |
 | `quiz.ouvert` | Quiz et coupons | Application spectateur | Signaler la disponibilité du quiz et son échéance |
-| `quiz.termine` | Quiz et coupons | Quiz et coupons | Enregistrer une seule décision par tentative : aucun coupon, tirage unique ou coupon garanti selon le score |
-| `coupon.emis` | Quiz et coupons | Application spectateur | Afficher le coupon, son QR code et le choix popcorn ou boisson pour une prochaine visite |
+| `quiz.termine` | Quiz et coupons | Quiz et coupons | Annoncer le résultat. Quiz enregistre la décision de récompense lors de la finalisation et émet un coupon à partir de 8/10. |
+| `coupon.emis` | Quiz et coupons | Application spectateur | Annoncer le coupon et les produits éligibles. Le titulaire récupère le jeton via une route Quiz dédiée. |
 | `coupon.utilise` | Quiz et coupons | Fournisseurs | Alimenter les consommations journalières du produit réellement choisi |
 
 Les événements de réservation restent décrits avec des listes `recepteurs` et
 `reactions` vides : aucun consommateur n'est défini pour eux dans ce périmètre.
 Quiz et coupons apparaît parfois comme son propre récepteur : les exemples
 décrivent des réactions entre ses agrégats. Cela ne crée pas un nouveau service.
-La remise des notifications à la bonne application spectateur reste un point
-d'interface à définir.
+Quiz expose des notifications via son API. Le destinataire
+`application_spectateur` n'a pas de worker dans Docker Compose.
 
 ::: {.callout-note collapse="true"}
 ## Événements du Catalogue : films
@@ -614,8 +548,8 @@ propriétaires des films, des séances ou des coupons d'origine.
 
 ### Recherche de films et de séances
 
-La question métier est : « Quels films correspondent à ma recherche et quelles
-séances puis-je choisir ? » Un document Elasticsearch regroupe les informations
+Dans la conception, Recherche répond à la question « Quels films correspondent
+à ma recherche et quelles séances puis-je choisir ? » Un document Elasticsearch regroupe les informations
 publiques d'un film et ses séances. Les questions du quiz sont exclues. Chaque
 séance expose horaire, version et tarif minimum ; le film possède aussi un prix
 « à partir de ».
@@ -675,13 +609,12 @@ sans modifier le service qui émet les coupons.
 ```
 :::
 
-L'identifiant d'événement sert de clé pour reconnaître les doublons. L'exemple
-enregistre les données de consommation à plat et incrémente le compteur dans une
-seule transaction : les deux écritures sont conservées ensemble ou annulées
-ensemble. Une réception déjà enregistrée ne modifie pas les totaux.
-Cet exemple `mongosh` nécessite un replica set MongoDB pour les
-[transactions](https://www.mongodb.com/docs/manual/core/transactions/) ; sa
-configuration sera réalisée lors de l'implémentation.
+Le service convertit l'horodatage en jour civil `Europe/Paris` et
+enregistre l'identifiant de l'événement avec le compteur dans une même
+transaction. Une réception déjà enregistrée ne modifie pas le total. Docker
+Compose démarre MongoDB en replica set `rs0` pour prendre en charge ces
+transactions. L'API `GET /consommations` limite la lecture au fournisseur
+identifié par `X-Fournisseur-Id` et accepte `date_de` et `date_a`.
 
 ### Évolution vers de nouvelles lectures
 
@@ -696,28 +629,19 @@ soit d'abord définie et transmise.
 
 ### Exemple de réservation, de quiz et de récompense
 
-Le scénario suivant relie les exemples existants de `client_12`, `film_dune2`,
-`seance_42` et `res_981`. Les dates et heures sont celles des fichiers, en UTC
-comme l'indique le suffixe `Z`. La banque du film, les questions figées et les
-réponses de la tentative sont abrégées dans les JSON : ils illustrent les modèles
-et ne constituent pas un jeu de données permettant d'exécuter dix questions.
+Les fichiers JSON illustrent le parcours de `client_12` pour le film
+`film_dune2`. Les heures du tableau sont en UTC. Pour exécuter le scénario
+avec des dates courantes et dix questions complètes, utilisez les données
+de démonstration et les collections Postman.
 
-| Étape | Demande ou fait | Service et données modifiées | Événement et conséquence |
-|---|---|---|---|
-| 1. Film et salle | `CreerFilm`, `AjouterQuestion`, `CreerSalle` | Catalogue prépare le film et la salle ; l'ajout de questions est répété jusqu'au minimum requis | `film.cree`, puis `film.modifie`, alimentent Quiz et Recherche selon les champs utiles |
-| 2. Programmation | `CreerSeance` | Catalogue crée `seance_42` pour le 7 octobre à 20:00 ; générique à 22:38, fin à 22:46 | `seance.creee` crée le réplica de Réservations et la séance dans Recherche |
-| 3. Choix des places | Deux appels à `BloquerPlace` | Réservations bloque temporairement F7 et F8 pour `client_12`, identifié par le prestataire d'authentification simulé | Aucun événement défini ; expiration proposée après cinq minutes |
-| 4. Achat | `ConfirmerReservation` le 5 octobre | Réservation `res_981`, deux billets à 11,50 € et 9 €, total 20,50 € | `reservation.confirmee` décrit l'achat ; aucun consommateur n'est défini dans ce périmètre |
-| 5. Transfert facultatif | `TransfererBillet` pour le premier billet | `client_40` devient titulaire de `bil_981_1` ; l'acheteur reste `client_12` | Aucun événement de transfert prévu |
-| 6. Entrée | `ValiderBillet` à 19:53 pour le second billet, avec justificatif | Réservations valide `bil_981_2` de `client_12` | `billet.valide` crée la tentative en attente et prépare les notifications du quiz |
-| 7. Générique | `ConfirmerPresence` à 22:41 avec le code de séance | Quiz et coupons fixe `demarrage_avant` au 8 octobre à 00:41 | `quiz.ouvert` informe l'application du spectateur |
-| 8. Participation | `DemarrerQuiz` à 23:05, puis `RepondreQuestion` avec un `choix_id` | Dix questions figées ; `finir_avant` vaut 23:07:30 ; la tentative termine à 23:07:20 avec un score de 9/10 dans l'exemple | `quiz.termine` déclenche le tirage unique d'attribution d'un coupon |
-| 9. Coupon de quiz | Tirage favorable pour le score de 9/10, dans cet exemple | Quiz et coupons enregistre `recompense_traitee = true`, lie `coupon_id = cpn_55` et crée ce coupon valable trente jours pour un popcorn ou une boisson à une visite ultérieure | `coupon.emis` permet son affichage ; un rejeu ne refait pas le tirage et ne crée pas un autre coupon |
-| 10. Prochaine visite | `UtiliserCoupon` le 15 octobre pour `cpn_55`, avec le choix `popcorn_moyen` | Le coupon passe à utilisé ; son type, son fournisseur et sa date d'utilisation sont fixés | `coupon.utilise` ajoute une remise de popcorn aux consommations du fournisseur ; un choix boisson aurait compté une boisson |
-
-Le coupon du scénario provient uniquement du résultat du quiz. Une utilisation
-contribue pour une unité au total journalier ; les 59 unités de l'exemple
-fournisseur représentent plusieurs coupons, et non cette seule visite.
+| Étape | Action | Résultat |
+|---|---|---|
+| 1. Programmer | Créer le film, ajouter les questions, créer une salle et programmer `seance_42` | Les événements de film alimentent Quiz. `seance.creee` crée le réplica de Réservations. |
+| 2. Réserver | Bloquer F7 et F8 puis confirmer l'achat de `res_981` | Deux billets sont émis pour un total de 20,50 €. L'acheteur peut désigner `client_40` titulaire du premier billet dès l'achat. |
+| 3. Entrer | Valider `bil_981_2`, le billet de `client_12`, à 19 h 53 avec le justificatif | `billet.valide` programme sa tentative. |
+| 4. Ouvrir le quiz | La séance se termine à 22 h 46 | Le worker publie `quiz.ouvert`. Le quiz peut être démarré jusqu'à 00 h 46. |
+| 5. Répondre | Le titulaire démarre à 23 h 05 et obtient 9/10 | Quiz publie `quiz.termine` et `coupon.emis`. Le coupon `cpn_55` est valable trente jours. |
+| 6. Utiliser le coupon | Le 15 octobre, le titulaire fait valider un billet, puis choisit un popcorn moyen au comptoir | Le scan publie `coupon.utilise`. Fournisseurs ajoute une unité à son compteur journalier. |
 
 ### Variantes déjà décrites
 
@@ -733,24 +657,10 @@ actuel, l'annulation et le remboursement unique des réservations encore confirm
 l'annulation des quiz non terminés à réception dans Quiz et le retrait de la séance
 dans Recherche. Les résultats terminés et coupons déjà émis sont conservés.
 
-### Questions à valider et à compléter
+### Éléments de conception à prolonger
 
-Les éléments ci-dessous signalent les limites des contrats actuels. Ce rapport
-les documente ; il ne modifie pas les règles ni les événements correspondants.
-
-| Sujet | Travail restant dans la conception |
-|---|---|
-| Décisions collectives | Renseigner les validations dans `DECISIONS.md`, dont l'accès au coupon sans billet du jour et le transfert sans événement |
-| Réservation et concurrence | Choisir le mécanisme réalisant l'attribution atomique des places et la reprise des copies de lecture définies dans le modèle |
-| Identité et accès | Réaliser les contrôles du titulaire définis pour le quiz et préciser l'acheminement individuel des notifications et des secrets de coupons |
-| Déroulement du quiz | Définir le générateur du QR code et réaliser les règles de délais serveur, de questions figées et de reprise sans remise à zéro |
-| Mise à jour des copies | Préciser la propagation des changements de titre ou d'horaires déjà copiés |
-| Fiabilité des événements | Choisir les abonnements, l'ordre, les accusés de réception, la reprise et la publication après écriture ; réaliser la déduplication atomique définie dans le contrat commun |
-| Projections | Réaliser les lectures séance-film définies dans Recherche, le traitement du temps et la configuration des transactions Fournisseurs |
-| Stockage et exemples | Créer les tables, clés, index et réglages de persistance documentés ; vérifier la reprise et compléter les données abrégées pour une démonstration exécutable |
-
-La relecture collective peut suivre trois parcours : l'achat jusqu'au coupon,
-l'annulation avec remboursement et la réception répétée d'un événement. Pour
-chacun, il faut vérifier l'agrégat propriétaire, le message publié et les copies
-locales affectées. La réalisation des services et des interfaces fera l'objet
-d'un travail distinct si elle est demandée dans les livrables du cours.
+La projection Recherche dispose d'un modèle de document et d'une requête
+Elasticsearch. Sa mise en service demanderait un consommateur des événements
+Catalogue et une API de recherche. Les événements `quiz.ouvert` et
+`coupon.emis` documentent aussi l'intégration d'une application spectateur
+aux notifications.

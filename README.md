@@ -89,7 +89,7 @@ La projection Elasticsearch de **Recherche** et le destinataire `application_spe
 | [`5-projections/`](5-projections/) | Modèles et requêtes des projections Recherche et Fournisseurs |
 | [`services/`](services/) | Services FastAPI et module commun |
 
-Avec [Quarto](https://quarto.org), utilisez `quarto render` pour générer le rapport ou `quarto preview` pour le consulter pendant l'édition.
+Depuis la racine du dépôt, lancez `quarto preview index.qmd` avec [Quarto](https://quarto.org) pour ouvrir le rapport et le recharger pendant l'édition. La commande `quarto render index.qmd` régénère `index.html`.
 
 ## Équipe
 
